@@ -3,7 +3,7 @@ import typer
 from rich import print as rprint
 from pathlib import Path
 
-from confidantic import init_settings, PluginRegistry, find_project_root
+from confidantic import Settings, PluginRegistry, find_project_root
 from confidantic.versioning import VersionBase
 
 app = typer.Typer(add_completion=False, help="Confidantic CLI utilities")
@@ -19,7 +19,7 @@ def env(
     ),
 ) -> None:
     """Pretty-print the resolved environment."""
-    settings = init_settings(PluginRegistry.build_class())
+    settings = Settings
     if export:
         for k, v in settings.model_dump().items():
             print(f"export {k}={json.dumps(str(v))}")
@@ -30,7 +30,7 @@ def env(
 @app.command()
 def info() -> None:
     """Show high-level library / repo metadata."""
-    settings = init_settings()
+    settings = Settings
     info_dict = {
         "project_root": str(settings.project_root),
         "package_version": settings.package_version,
@@ -40,7 +40,7 @@ def info() -> None:
     rprint(info_dict)
 
 
-@app.command("bump-version")
+@app.command("bump")
 def bump_version_cli(
     part: str = typer.Argument(
         ...,

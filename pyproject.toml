@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "confidantic"
-version = "0.2.0"
+version = "0.3.0"
 description = "Your most trusted confidant for app & library settings."
 readme = "README.md"
 authors = [{name = "Bullish-Design", email = "BullishDesignEngineering@gmail.com"}]

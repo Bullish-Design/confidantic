@@ -1,6 +1,7 @@
 {
   "project_root": "/home/andrew/Documents/Projects/confidantic",
-  "package_version": "0.1.0",
+  "env_files": [],
+  "package_version": "0.2.0",
   "git_commit": null,
   "git_branch": null,
   "SHELL": "/nix/store/9nw8b61s8lfdn8fkabxhbz0s775gjhbr-bash-5.2p37/bin/bash",
@@ -126,7 +127,7 @@
   "LESSKEYIN_SYSTEM": "/nix/store/vkxrlp6wf28fkv9bngdy4kv9sijh2j5z-lessconfig",
   "GDM_X_SERVER_EXTRA_ARGS": "-config /nix/store/skn7mj2g4fqhnjw23330xcr6zq9b1wr3-xserver.conf -xkbdir /nix/store/wwkn3zf3qv1vhvhbjr0r3glx5l2zgl8d-xkeyboard-config-2.43/etc/X11/xkb -logfile /dev/null -nolisten tcp",
   "TERMINFO_DIRS": "/home/andrew/.nix-profile/share/terminfo:/nix/profile/share/terminfo:/home/andrew/.local/state/nix/profile/share/terminfo:/etc/profiles/per-user/andrew/share/terminfo:/nix/var/nix/profiles/default/share/terminfo:/run/current-system/sw/share/terminfo",
-  "ATUIN_HISTORY_ID": "0197795eade37491b5b8979cdc1b1dc8",
+  "ATUIN_HISTORY_ID": "019779c0ff037fb099574ed9f88045ba",
   "DEVENV_PROFILE": "/nix/store/5ia828xhj4g751xilwn7zsyglkali54i-devenv-profile",
   "XDG_RUNTIME_DIR": "/run/user/1000",
   "SSL_CERT_FILE": "/etc/pki/tls/certs/ca-bundle.crt",

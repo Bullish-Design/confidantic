@@ -1,5 +1,6 @@
-__version__ = "0.2.0"
 from __future__ import annotations
+
+__version__ = "0.3.0"
 
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
@@ -10,21 +11,25 @@ from dotenv import dotenv_values  # pip install python-dotenv
 from pydantic import BaseModel, Field
 from rich.pretty import Pretty
 
-__all__ = ["Settings", "init_settings", "load_env_files", "PluginRegistry"]
-
+__all__ = [
+    # user-visible top-level API
+    "Settings",  # the **instance** (auto-loaded)
+    "SettingsType",  # the underlying pydantic class (advanced use)
+    "PluginRegistry",
+    "init_settings",  # kept for backward compatibility
+    "find_project_root",
+    "gather_env_files",
+    "load_env_files",
+]
 PROJECT_ROOT_MARKERS = {".git", ".config"}  # stop when we meet one of these
 
 
-def find_project_root(start: Path | str | None = None) -> Path:
+def find_project_root(start: str | Path | None = None) -> Path:
     """Walk parents until we find a folder containing one of the PROJECT_ROOT_MARKERS."""
     current = Path(start or Path.cwd()).resolve()
-    # print(f"\nFinding project root starting from: {current}")
     for parent in (current, *current.parents):
-        # print(f"    Checking parent: {parent}")
         if any((parent / marker).exists() for marker in PROJECT_ROOT_MARKERS):
-            # print(f"    ** Found project root: {parent}")
             return parent
-    # print("    No project root found, using current working directory -> {current}")
     return current  # fallback to cwd if nothing found
 
 
@@ -35,11 +40,11 @@ def gather_env_files(root: Path) -> List[Path]:
 
 
 def load_env_files(files: Sequence[Path]) -> Dict[str, str]:
-    """Merge .env files: later entries override earlier ones."""
-    merged: Dict[str, str] = {}
-    for file in reversed(list(files)):  # leaf-first override
-        merged.update({k: v for k, v in dotenv_values(file).items() if v is not None})
-    return merged
+    """Later files take precedence (same as dotenv)."""
+    env: Dict[str, str] = {}
+    for fp in files[::-1]:  # reverse traversal: shallow first, deep last
+        env.update(dotenv_values(fp))
+    return {k: str(v) for k, v in env.items() if v is not None}
 
 
 class Settings(BaseModel):
@@ -50,6 +55,7 @@ class Settings(BaseModel):
 
     # Built-ins that every project gets for free
     project_root: Path = Field(default_factory=find_project_root)
+    env_files: List[Path] = Field(default_factory=list)
     package_version: str | None = None
     git_commit: str | None = None
     git_branch: str | None = None
@@ -68,17 +74,25 @@ class _SettingsSingleton:
     def init(cls, model_cls: type[Settings], **kwargs: Any) -> Settings:
         if cls._instance is not None:
             return cls._instance
-        # Environment variables first
+
+        # 1) load .env cascade
         env_files = gather_env_files(find_project_root())
         env_data = load_env_files(env_files)
-        # CLI or OS overrides win
+
+        # 2) merge OS-level variables (they win)
         env_data.update(os.environ)
-        # Build instance
-        instance = model_cls(**{**env_data, **kwargs})
-        # Populate package / git metadata
+
+        # 3) build the *instance*
+        instance = model_cls.model_validate(env_data | kwargs)
+        instance.env_files = env_files
+
+        # optional Git + version metadata
         cls._populate_git(instance)
-        cls._populate_version(instance)
-        cls._instance, cls._cls = instance, model_cls
+        cls._populate_pkg(instance)
+
+        # 4) cache & return
+        cls._instance = instance
+        cls._cls = model_cls
         # Snapshot merged config for inspection
         dump_path = instance.project_root / ".config" / "confidantic.yaml"
         dump_path.parent.mkdir(exist_ok=True)
@@ -95,11 +109,11 @@ class _SettingsSingleton:
             repo = Repo(settings.project_root)
             settings.git_commit = repo.head.commit.hexsha[:8]
             settings.git_branch = repo.active_branch.name
-        except Exception:
-            pass  # not a git repo or GitPython not installed
+        except Exception:  # pragma: no cover
+            pass  # not a Git repo, or GitPython unavailable
 
     @staticmethod
-    def _populate_version(settings: Settings) -> None:
+    def _populate_pkg(settings: Settings) -> None:
         try:
             import importlib.metadata as md
 
@@ -132,3 +146,23 @@ class PluginRegistry:
     def build_class(cls, base: type[Settings] = Settings) -> type[Settings]:
         # Dynamically create a combined class so type checkers stay happy
         return type("ConfidanticSettings", tuple(cls._mixins) + (base,), {})
+
+
+# --------------------------------------------------------------------------- #
+#                    ***  AUTO-INITIALISE ON IMPORT  ***                      #
+# --------------------------------------------------------------------------- #
+# 1) Build the *final* class (base + any plug-ins already registered)
+SettingsType = PluginRegistry.build_class()
+
+# 2) Create the singleton *instance* immediately …
+_SettingsInstance = _SettingsSingleton.init(SettingsType)
+
+# 3) …and expose it *as* `Settings`
+Settings: SettingsType = _SettingsInstance  # type: ignore[assignment]
+# Users may still import `SettingsType` if they need the class itself.
+
+
+# --------------------------------------------------------------------------- #
+#                         Convenience backward alias                          #
+# --------------------------------------------------------------------------- #
+settings = Settings  # lower-case alias (optional, feels ergonomic)
