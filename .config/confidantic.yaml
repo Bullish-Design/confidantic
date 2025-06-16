@@ -1,7 +1,11 @@
 {
   "project_root": "/home/andrew/Documents/Projects/confidantic",
-  "env_files": [],
-  "package_version": "0.2.0",
+  "env_files": [
+    "/home/andrew/Documents/Projects/confidantic/.config/test_config.env",
+    "/home/andrew/Documents/Projects/confidantic/demo/test.env",
+    "/home/andrew/Documents/Projects/confidantic/.env"
+  ],
+  "package_version": "0.3.0",
   "git_commit": null,
   "git_branch": null,
   "SHELL": "/nix/store/9nw8b61s8lfdn8fkabxhbz0s775gjhbr-bash-5.2p37/bin/bash",

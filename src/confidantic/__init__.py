@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "0.3.2"
 
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
@@ -9,7 +9,7 @@ import os
 
 from dotenv import dotenv_values  # pip install python-dotenv
 from pydantic import BaseModel, Field
-from rich.pretty import Pretty
+from rich.pretty import Pretty, pprint as pp
 
 __all__ = [
     # user-visible top-level API
@@ -61,7 +61,8 @@ class Settings(BaseModel):
     git_branch: str | None = None
 
     def pretty(self) -> Pretty:
-        return Pretty(self.model_dump(mode="python"), expand_all=True)
+        # return Pretty(self.model_dump(mode="python"), expand_all=True)
+        return pp(self.model_dump(mode="python"), expand_all=True, indent_guides=True)
 
 
 class _SettingsSingleton:
