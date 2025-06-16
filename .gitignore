@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.devenv
+*devenv*
+.tmuxp.yaml
 
 # C extensions
 *.so
