@@ -5,7 +5,7 @@
     "/home/andrew/Documents/Projects/confidantic/demo/test.env",
     "/home/andrew/Documents/Projects/confidantic/.env"
   ],
-  "package_version": "0.3.0",
+  "package_version": "0.3.2",
   "git_commit": null,
   "git_branch": null,
   "SHELL": "/nix/store/9nw8b61s8lfdn8fkabxhbz0s775gjhbr-bash-5.2p37/bin/bash",
@@ -172,7 +172,7 @@
   "name": "devenv-shell-env",
   "PKG_CONFIG": "pkg-config",
   "TERM_PROGRAM": "tmux",
-  "_": "/home/andrew/Documents/Projects/confidantic/.devenv/state/venv/bin/conf",
+  "_": "/home/andrew/Documents/Projects/confidantic/.devenv/state/venv/bin/python",
   "PYTHONNOUSERSITE": "true",
   "LD_LIBRARY_PATH": "/home/andrew/Documents/Projects/confidantic/.devenv/profile/lib:/nix/store/7n3q3rgy5382di7ccrh3r6gk2xp51dh7-gcc-14.2.1.20250322-lib/lib"
 }

@@ -21,6 +21,7 @@ __all__ = [
     "gather_env_files",
     "load_env_files",
 ]
+
 PROJECT_ROOT_MARKERS = {".git", ".config"}  # stop when we meet one of these
 
 
