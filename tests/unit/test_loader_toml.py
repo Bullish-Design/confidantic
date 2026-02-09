@@ -4,7 +4,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from confidantic.core.errors import TomlLoadError
 from confidantic.core.loader_toml import (
@@ -20,8 +20,9 @@ class SimpleModel(BaseModel):
 
 
 class StrictModel(BaseModel):
-    class Config:
-        extra = "forbid"
+    # class Config:
+    #    extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     name: str
 
@@ -60,14 +61,14 @@ class TestLoadTomlValidated:
 
     def test_validation_error_includes_path(self, tmp_path: Path):
         f = tmp_path / "test.toml"
-        f.write_text('count = 5\n')  # missing required 'name'
+        f.write_text("count = 5\n")  # missing required 'name'
         with pytest.raises(TomlLoadError) as exc_info:
             load_toml_validated(f, SimpleModel)
         assert str(f) in str(exc_info.value)
 
     def test_type_error_in_validation(self, tmp_path: Path):
         f = tmp_path / "test.toml"
-        f.write_text('name = 123\n')  # name should be str
+        f.write_text("name = 123\n")  # name should be str
         # Pydantic strict mode rejects int for str field
         with pytest.raises(TomlLoadError, match="name"):
             load_toml_validated(f, SimpleModel)
@@ -76,10 +77,12 @@ class TestLoadTomlValidated:
 class TestLoadTomlAsDict:
     def test_returns_plain_dict(self, tmp_path: Path):
         f = tmp_path / "test.toml"
-        f.write_text(textwrap.dedent("""\
+        f.write_text(
+            textwrap.dedent("""\
             [section]
             key = "value"
             num = 42
-        """))
+        """)
+        )
         result = load_toml_as_dict(f)
         assert result == {"section": {"key": "value", "num": 42}}
