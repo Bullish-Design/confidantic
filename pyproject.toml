@@ -4,21 +4,23 @@ build-backend = "hatchling.build"
 
 [project]
 name = "confidantic"
-version = "0.3.2"
-description = "Your most trusted confidant for app & library settings."
+version = "1.0.0a1"
+description = "Deterministic configuration management for devman-managed projects."
 readme = "README.md"
 authors = [{name = "Bullish-Design", email = "BullishDesignEngineering@gmail.com"}]
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.7.0",
-    "python-dotenv>=1.0.1",
     "typer>=0.12.3",
     "rich>=13.6.0",
 ]
 
 [project.optional-dependencies]
-git = ["GitPython>=3.1.43"]
+dev = [
+    "pytest>=8.0",
+    "pytest-tmp-files>=0.0.2",
+]
 
 [project.urls]
 Repository = "https://github.com/Bullish-Design/confidantic"
@@ -27,5 +29,7 @@ Repository = "https://github.com/Bullish-Design/confidantic"
 packages = ["src/confidantic"]
 
 [project.scripts]
-conf = "confidantic.cli:main"
+confidantic = "confidantic.cli:main"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
