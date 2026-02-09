@@ -5,12 +5,14 @@ let
 in
 {
   # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env.GREET = "Confidantic";
 
   # https://devenv.sh/packages/
-  packages = [ 
-    pkgs.git 
-    pkgs.uv
+  packages = with pkgs; [ 
+    git 
+    just
+    jq
+    cue
     ];
 
   # https://devenv.sh/languages/
@@ -35,6 +37,10 @@ in
   # scripts.hello.exec = ''
   #   echo hello from $GREET
   # '';
+
+  env.JUSTFILE = ".devman/justfile";
+
+  scripts.test.exec = "just test";
 
   enterShell = ''
     echo
