@@ -73,13 +73,9 @@ confidantic/
       emitters.py
     cue/
       wrapper.py
-  devenv/
-    modules/
-      confidantic.nix
-    just/
-      confidantic.just
-    bin/
-      confidantic-cue
+  .devman/
+    devenv.nix               
+    ...
   tests/
     unit/
     integration/
