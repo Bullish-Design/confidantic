@@ -81,13 +81,9 @@ confidantic/
     models/
     cli.py
     cue_export/              # Pydantic -> CUE export logic
-  devenv/
-    modules/
-      confidantic.nix        # importable devenv module
-    just/
-      confidantic.just       # justfile include (recipes)
-    bin/
-      confidantic-cue        # wrapper around cue (+jq), stable interface
+  .devman/
+    devenv.nix               # devenv setup and general devman related stuff
+    ...
   templates/
     devman/
       confidantic_component/ # Devman template payload(s)
