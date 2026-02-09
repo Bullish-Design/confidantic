@@ -1,6 +1,10 @@
 # Confidantic
 Magical one stop settings shop. Kinda like Wonka, but these settings factories have less oompa loopas. And a better OSHA record.
 
+## Changelog
+- Refactoring around a devman integrated cuelang + jq wrapper script
+
+
 ---
 
 Confidantic is a lightweight, Pydantic‑v2‑powered toolkit that centralises **all** the knobs your Python project needs – environment variables, version info, feature flags and whatever new tricks tomorrow brings – behind one pleasant `Settings` import.
