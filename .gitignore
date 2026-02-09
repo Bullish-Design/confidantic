@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .devenv
-*devenv*
+.devenv*
 .tmuxp.yaml
 
 # C extensions
