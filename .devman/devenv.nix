@@ -1,5 +1,8 @@
 { pkgs, lib, config, inputs, ... }:
 
+let
+  root = config.git.root;
+in
 {
   # https://devenv.sh/basics/
   env.GREET = "devenv";
