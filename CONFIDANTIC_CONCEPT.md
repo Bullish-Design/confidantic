@@ -81,8 +81,6 @@ confidantic/
     models/
     cli.py
     cue_export/              # Pydantic -> CUE export logic
-  .devman/
-    devenv.nix               # devenv setup and general devman related stuff
     ...
   templates/
     devman/
