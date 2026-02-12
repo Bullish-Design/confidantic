@@ -1,6 +1,6 @@
 # Confidantic
 
-Confidantic is a deterministic configuration system for Devman-managed projects.
+Confidantic is a deterministic configuration system for Devman-managed projects: a Pydantic wrapper around the CUE CLI.
 
 It provides:
 
@@ -13,7 +13,7 @@ It provides:
 - **Pydantic-first runtime models**
 - **CUE-required schema workflows** (`cue fmt`, `cue vet`)
 - **Just-first developer/CI workflows**
-- **Deterministic merge and snapshot behavior**
+- **Deterministic wrapper merge and snapshot behavior**
 - **Safe-by-default redaction**
 
 ## Devenv contract
@@ -49,19 +49,18 @@ Required tooling on PATH:
     endpoints.jsonl
 ```
 
-## Resolution order
+## Minimal runtime flow
 
-1. registry config (`confidantic.toml`)
-2. selected profile overlay
-3. module overlays (declared deterministic order)
-4. referenced datasets
-5. explicit runtime overrides/context
+1. Pydantic model(s) define runtime structure
+2. export schema to CUE
+3. format with `cue fmt`
+4. validate data/snapshots with `cue vet`
 
 Profile precedence:
 
 1. explicit API argument
 2. external `CONFIDANTIC_PROFILE`
-3. `profile_default` in registry
+3. `profile_default` in `confidantic.toml`
 4. `default`
 
 ## Merge semantics
@@ -107,7 +106,7 @@ Confidantic provides an include-able justfile with:
 
 - export designated schema models to `./build/schemas/cue/`
 - run `cue fmt` on generated schemas
-- validate resolved snapshots with `cue vet`
+- validate resolved snapshots produced by the Python wrapper with `cue vet`
 - validate datasets with `cue vet`
 
 `confidantic-cue` is the stable wrapper used by recipes and CI.
