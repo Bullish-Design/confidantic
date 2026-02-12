@@ -1,6 +1,6 @@
 # Confidantic Concept
 
-Confidantic is a deterministic configuration system for Devman-managed projects. It combines:
+Confidantic is a deterministic configuration system for Devman-managed projects: a Pydantic wrapper around the CUE CLI. It combines:
 
 1. an importable **devenv module**,
 2. a **Python library** built on Pydantic, and
@@ -13,9 +13,9 @@ Confidantic is a deterministic configuration system for Devman-managed projects.
 A developer should be able to:
 
 1. Define configuration/data models in Pydantic.
-2. Resolve layered config from `.devman/.config` with deterministic behavior.
-3. Export model schemas to CUE.
-4. Validate snapshots and datasets with CUE.
+2. Export model schemas to CUE.
+3. Format schemas with `cue fmt`.
+4. Validate data and snapshots with `cue vet`.
 
 Confidantic provides the commands and recipes that make this flow standard and repeatable.
 
@@ -25,7 +25,7 @@ Confidantic provides the commands and recipes that make this flow standard and r
 
 ### 2.1 Pydantic is runtime source-of-truth
 
-Pydantic models define shape, defaults, and validation behavior used by the runtime resolver.
+Pydantic models define runtime shape, defaults, and validation behavior consumed by the Python wrapper.
 
 ### 2.2 CUE is required for schema workflows
 
@@ -95,19 +95,16 @@ Profile resolution precedence:
 
 ---
 
-## 4) Resolution model
+## 4) Minimal runtime flow
 
-Layering order:
+Confidantic follows a minimal and explicit pipeline:
 
-1. registry config (`confidantic.toml`)
-2. selected profile overlay
-3. module overlays (declared deterministic order)
-4. referenced datasets
-5. explicit runtime overrides/context
+1. Pydantic model(s) define runtime structure.
+2. Export schema to CUE.
+3. Format schema output with `cue fmt`.
+4. Validate data and resolved snapshots with `cue vet`.
 
-Output is a normalized resolved bundle suitable for tooling, debug, and validation.
-
----
+Determinism is provided by the Python wrapper's stable loading, merging, and serialization behavior, with CUE enforcing consistent schema constraints at validation time.
 
 ## 5) Merge semantics
 
@@ -123,7 +120,7 @@ Per-field list policies may override default behavior:
 - `unique`
 - `keyed:<field>`
 
-Policies are configured via field metadata and applied deterministically.
+Policies are configured via field metadata and applied deterministically by the Python wrapper before CUE validation.
 
 ---
 
@@ -185,8 +182,8 @@ All generated artifacts are build outputs.
 Confidantic is complete when:
 
 1. devenv contract is fully satisfied (`CONFIDANTIC_ROOT`, `CONFIDANTIC_JUSTFILE`, required PATH tooling, profile behavior).
-2. resolver behavior is deterministic and test-covered.
-3. snapshot output is stable and safe by default.
+2. Python wrapper behavior is deterministic and test-covered.
+3. snapshot output is stable and safe by default through redaction-aware wrapper APIs plus CUE validation workflows.
 4. CUE export + vet workflows are operational through wrapper and recipes.
 5. CLI remains plumbing-only and delegates business logic to core services.
 6. tests cover profile precedence, merge policies, JSONL warnings/strict behavior, redaction, and schema/data vet paths.
