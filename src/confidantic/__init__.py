@@ -5,3 +5,6 @@ with Pydantic models as runtime source-of-truth and CUE for schema
 validation.
 """
 
+from . import workshop
+
+__all__ = ["workshop"]
