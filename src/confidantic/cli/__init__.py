@@ -9,10 +9,12 @@ import typer
 
 from confidantic.workshop.logging import WorkshopLogReader
 
+from .schema import app as schema_app
 from .workshop import app as workshop_app
 
 app = typer.Typer(help="Confidantic CLI.", no_args_is_help=True)
 app.add_typer(workshop_app, name="workshop")
+app.add_typer(schema_app, name="schema")
 
 logs_app = typer.Typer(help="Workshop provenance log commands.", no_args_is_help=True)
 app.add_typer(logs_app, name="logs")
