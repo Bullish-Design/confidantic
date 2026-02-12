@@ -140,10 +140,15 @@ def load_workshop_input(
     # Timestamp captured for deterministic, UTC-scoped orchestration diagnostics.
     _ = datetime.now(timezone.utc)
 
+    source_paths: dict[str, Path] = {"node_types": resolved_node_types_path}
+    for query in query_files:
+        source_paths[f"query.{query.query_type}"] = query.file_path
+
     return WorkshopInput(
         grammar_name=grammar_name,
         node_types=node_types,
         query_files=query_files,
+        source_paths=source_paths,
     )
 
 
