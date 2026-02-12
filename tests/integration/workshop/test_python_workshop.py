@@ -8,9 +8,8 @@ from pathlib import Path
 import pytest
 
 from confidantic.workshop.doctor import WorkshopDoctor
-from confidantic.workshop.generator import CueGenerator
-from confidantic.workshop.loaders import load_workshop_input
 from confidantic.workshop.logging import WorkshopLogReader, WorkshopLogger
+from confidantic.workshop.services import generate_workshop_schemas
 
 
 def test_python_workshop_end_to_end(tmp_path: Path) -> None:
@@ -20,13 +19,14 @@ def test_python_workshop_end_to_end(tmp_path: Path) -> None:
     fixtures = Path("tests/fixtures/python")
     output_dir = tmp_path / "build" / "schemas" / "cue" / "python"
 
-    workshop_input = load_workshop_input(
-        grammar_name="python",
+    # Use service layer to generate and format files
+    result = generate_workshop_schemas(
+        grammar="python",
         node_types_path=fixtures / "node-types.json",
         queries_dir=fixtures / "queries",
+        output_dir=output_dir,
     )
-    generated = CueGenerator(workshop_input).generate(output_dir)
-    assert len(generated) == 3
+    assert len(result.generated_files) == 3
 
     doctor = WorkshopDoctor(
         grammar="python",
@@ -39,7 +39,7 @@ def test_python_workshop_end_to_end(tmp_path: Path) -> None:
 
     log_file = tmp_path / "logs" / "workshop.jsonl"
     logger = WorkshopLogger(log_path=log_file)
-    logger.log_event(stage="generate", status="success", grammar="python", artifact_paths=generated)
+    logger.log_event(stage="generate", status="success", grammar="python", artifact_paths=list(result.generated_files))
     assert len(WorkshopLogReader(log_path=log_file).filter_by_grammar("python")) == 1
 
 
