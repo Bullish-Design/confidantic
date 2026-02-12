@@ -46,13 +46,6 @@ confidantic/
       emitters.py
     cue/
       wrapper.py
-  devenv/
-    modules/
-      confidantic.nix
-    just/
-      confidantic.just
-    bin/
-      confidantic-cue
   tests/
     unit/
     integration/
@@ -210,7 +203,7 @@ A JSON Schema intermediate may be used before CUE emission.
 `devenv/modules/confidantic.nix` should provide:
 
 - `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`
-- `CONFIDANTIC_JUSTFILE=<absolute path to devenv/just/confidantic.just>`
+- `CONFIDANTIC_JUSTFILE=<absolute path to scripts/confidantic.just>`
 - shell hook ensuring `CONFIDANTIC_ROOT` exists
 - PATH tooling: `cue`, `jq`, `confidantic`, `confidantic-cue`
 
@@ -234,7 +227,7 @@ Advanced profile behavior (for example registry-backed profile catalogs or riche
 
 ## 12) Required Just recipes
 
-`devenv/just/confidantic.just` should include:
+`scripts/confidantic.just` should include:
 
 - `schema:export`
 - `schema:vet`

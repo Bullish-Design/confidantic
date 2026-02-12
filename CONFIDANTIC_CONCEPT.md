@@ -161,7 +161,7 @@ In an MVP checkout of this repository:
 
 - The root `justfile` (`./justfile`) currently exposes `just test` only.
 - Confidantic workflow recipes are not expected to exist in the root `justfile`.
-- Recipe targets below are provided by `devenv/just/confidantic.just` when the module is integrated (typically surfaced via `CONFIDANTIC_JUSTFILE`).
+- Recipe targets below are provided by `scripts/confidantic.just` when the module is integrated (typically surfaced via `CONFIDANTIC_JUSTFILE`).
 
 Prefer CUE-wrapped flows for schema/config tasks:
 
@@ -179,15 +179,15 @@ Plumbing CLI remains valid:
 | Goal | Command | Where defined |
 | --- | --- | --- |
 | Run repository checks in MVP checkout | `just test` | Root `./justfile` |
-| Export CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:export` | `devenv/just/confidantic.just` (when integrated) |
-| Format CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt` | `devenv/just/confidantic.just` (when integrated) |
-| Vet schema/data via CUE (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:vet` | `devenv/just/confidantic.just` (when integrated) |
+| Export CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:export` | `scripts/confidantic.just` (when integrated) |
+| Format CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt` | `scripts/confidantic.just` (when integrated) |
+| Vet schema/data via CUE (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:vet` | `scripts/confidantic.just` (when integrated) |
 | Validate resolved config | `confidantic validate` | `confidantic` CLI |
 | Dump resolved config JSON | `confidantic dump --format json` | `confidantic` CLI |
 
 ### 8.3 Just recipes
 
-Required recipe names (provided by `devenv/just/confidantic.just` when module is integrated):
+Required recipe names (provided by `scripts/confidantic.just` when module is integrated):
 
 - `schema:export`
 - `schema:vet`
