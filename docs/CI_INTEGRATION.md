@@ -144,3 +144,27 @@ Legacy compatibility aliases remain available for `validate`, `dump`, `env`, and
 5. `just --justfile scripts/confidantic.just cue:from-ts:vet <grammar>`
 6. optional `confidantic logs stats --format json`
 7. optional `confidantic migrate doctor --root . --format json`
+
+
+## Python-driven CI gate script (Phase 6)
+
+For non-GitHub CI/CD systems, use the repository runner script:
+
+```bash
+python scripts/ci/phase6_quality_gates.py all
+```
+
+Target individual suites:
+
+```bash
+python scripts/ci/phase6_quality_gates.py test
+python scripts/ci/phase6_quality_gates.py quality
+python scripts/ci/phase6_quality_gates.py performance
+python scripts/ci/phase6_quality_gates.py e2e
+```
+
+In devenv this is also available as:
+
+```bash
+devenv tasks run confidantic-phase6 -- all
+```

@@ -54,6 +54,10 @@ in
 
   scripts.test.exec = "just test";
 
+  scripts.confidantic-phase6.exec = ''
+    exec uv run --project "${root}" python scripts/ci/phase6_quality_gates.py "$@"
+  '';
+
   enterShell = ''
     echo
     echo --------------------------------------------------------
