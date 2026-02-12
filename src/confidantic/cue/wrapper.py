@@ -12,7 +12,12 @@ def check_cue_available() -> bool:
     return shutil.which("cue") is not None
 
 
-def _run_cue_command(args: list[str], *, context: str) -> subprocess.CompletedProcess[str]:
+def _run_cue_command(
+    args: list[str],
+    *,
+    context: str,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run a cue command with strict error handling and predictable output capture."""
     if not check_cue_available():
         raise RuntimeError(
@@ -24,17 +29,23 @@ def _run_cue_command(args: list[str], *, context: str) -> subprocess.CompletedPr
         check=False,
         capture_output=True,
         text=True,
+        cwd=str(cwd) if cwd is not None else None,
     )
 
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         stdout = (result.stdout or "").strip()
-        details = stderr or stdout or "cue command failed without output"
+        cwd_line = f"cwd: {cwd}\n" if cwd is not None else ""
         raise subprocess.CalledProcessError(
             returncode=result.returncode,
             cmd=result.args,
             output=result.stdout,
-            stderr=f"{context} failed: {details}",
+            stderr=(
+                f"{context} failed with exit code {result.returncode}.\n"
+                f"{cwd_line}"
+                f"stdout:\n{stdout or '(empty)'}\n"
+                f"stderr:\n{stderr or '(empty)'}"
+            ),
         )
 
     return result
@@ -58,7 +69,12 @@ def run_cue_fmt(file_or_dir: Path, check: bool = False) -> subprocess.CompletedP
     return _run_cue_command(args, context=f"cue fmt for {target}")
 
 
-def run_cue_vet(path: Path, schema: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run_cue_vet(
+    path: Path,
+    schema: Path | None = None,
+    *,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     """Run ``cue vet`` against ``path`` with optional ``schema``.
 
     The argument order is deterministic: ``cue vet`` + optional schema + path.
@@ -77,4 +93,15 @@ def run_cue_vet(path: Path, schema: Path | None = None) -> subprocess.CompletedP
         args.append(str(schema_path))
 
     args.append(str(target))
-    return _run_cue_command(args, context=f"cue vet for {target}")
+
+    run_cwd = Path(cwd) if cwd is not None else None
+    if run_cwd is not None and not run_cwd.exists():
+        raise FileNotFoundError(
+            f"Cannot run cue vet: working directory does not exist: {run_cwd}"
+        )
+
+    return _run_cue_command(
+        args,
+        context=f"cue vet for {target}",
+        cwd=run_cwd,
+    )

@@ -216,12 +216,50 @@ class WorkshopDoctor:
     def _check_cue_validity(self) -> None:
         if self.schemas_dir is None or not self.schemas_dir.exists():
             return
+
+        cue_files = tuple(sorted(self.schemas_dir.glob("*.cue")))
+        expected = ("captures.cue", "metadata.cue", "node_types.cue")
+        missing = [name for name in expected if not (self.schemas_dir / name).exists()]
+        if missing:
+            self._add_issue(
+                "error",
+                "cue_validity",
+                f"Generated schema set is incomplete; missing files: {', '.join(missing)}",
+                file_path=self.schemas_dir,
+            )
+
+        package_names: dict[str, Path] = {}
+        for cue_file in cue_files:
+            for line in cue_file.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped.startswith("package "):
+                    package_name = stripped.removeprefix("package ").strip()
+                    package_names.setdefault(package_name, cue_file)
+                    break
+
+        if len(package_names) > 1:
+            package_summary = ", ".join(
+                f"{package}@{path.name}" for package, path in sorted(package_names.items())
+            )
+            self._add_issue(
+                "error",
+                "cue_validity",
+                f"Generated files contain mismatched package declarations: {package_summary}",
+                file_path=self.schemas_dir,
+            )
+
         try:
-            run_cue_vet(self.schemas_dir)
+            # cue vet can reject absolute directory targets. Use parent cwd + relative folder.
+            run_cue_vet(Path(self.schemas_dir.name), cwd=self.schemas_dir.parent)
         except FileNotFoundError:
             self._add_issue("warning", "cue_validity", "cue binary unavailable; skipped cue vet")
         except Exception as exc:
-            self._add_issue("error", "cue_validity", f"cue vet failed: {exc}", file_path=self.schemas_dir)
+            self._add_issue(
+                "error",
+                "cue_validity",
+                f"cue vet failed with command output: {exc}",
+                file_path=self.schemas_dir,
+            )
 
     def _check_performance(self) -> None:
         if len(self._node_types) > 1000:
