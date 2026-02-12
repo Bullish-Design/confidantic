@@ -8,19 +8,11 @@ from typing import Literal
 import typer
 
 from confidantic.workshop.doctor import export_diagnostic_report, format_diagnostic_report
-from confidantic.workshop.services import (
-    doctor_workshop_inputs,
-    generate_workshop_schemas,
-    validate_workshop_output,
-)
+from confidantic.workshop.services import doctor_workshop_inputs, generate_workshop_schemas, validate_workshop_output
+
+from .output import emit, fail
 
 app = typer.Typer(help="Workshop plumbing commands.", no_args_is_help=True)
-
-
-def _fail(message: str, *, code: int = 1) -> None:
-    """Emit deterministic CLI error output and terminate."""
-    typer.echo(message, err=True)
-    raise typer.Exit(code=code)
 
 
 @app.command("generate")
@@ -39,13 +31,25 @@ def generate(
             output_dir=output_dir,
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        _fail(f"workshop generate failed: {exc}")
+        fail(message=f"workshop generate failed: {exc}", payload={"command": "workshop generate", "status": "error"})
 
     if not result.generated_files:
-        _fail("workshop generate failed: no files were generated")
+        fail(
+            message="workshop generate failed: no files were generated",
+            payload={"command": "workshop generate", "status": "error"},
+        )
 
-    for path in result.generated_files:
-        typer.echo(path)
+    emit(
+        payload={
+            "command": "workshop generate",
+            "grammar": grammar,
+            "output_dir": str(output_dir),
+            "generated_files": [str(path) for path in result.generated_files],
+            "status": "ok",
+        },
+        text=f"Generated {len(result.generated_files)} workshop schema file(s).",
+        quiet_text="ok",
+    )
     raise typer.Exit(code=0)
 
 
@@ -69,16 +73,33 @@ def doctor(
             schemas_dir=schemas_dir,
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        _fail(f"workshop doctor failed: {exc}")
+        fail(message=f"workshop doctor failed: {exc}", payload={"command": "workshop doctor", "status": "error"})
 
     report = result.report
     if format == "terminal":
-        typer.echo(format_diagnostic_report(report))
+        emit(
+            payload={"command": "workshop doctor", "status": "ok", "healthy": report.is_healthy()},
+            text=format_diagnostic_report(report),
+            quiet_text="ok" if report.is_healthy() else "unhealthy",
+        )
     elif output is None:
-        _fail("workshop doctor: --output is required for non-terminal formats")
+        fail(
+            message="workshop doctor: --output is required for non-terminal formats",
+            payload={"command": "workshop doctor", "status": "error"},
+        )
     else:
         export_diagnostic_report(report, output_path=output, format=format)
-        typer.echo(output)
+        emit(
+            payload={
+                "command": "workshop doctor",
+                "status": "ok",
+                "healthy": report.is_healthy(),
+                "output": str(output),
+                "format": format,
+            },
+            text=f"Wrote diagnostic report: {output}",
+            quiet_text=str(output),
+        )
 
     raise typer.Exit(code=0 if report.is_healthy() else 1)
 
@@ -92,12 +113,23 @@ def validate(
     try:
         result = validate_workshop_output(output_dir=output_dir, grammar=grammar)
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        _fail(f"workshop validate failed: {exc}")
+        fail(message=f"workshop validate failed: {exc}", payload={"command": "workshop validate", "status": "error"})
 
-    if result.ok:
-        typer.echo("workshop validate: OK")
-        raise typer.Exit(code=0)
+    if not result.ok:
+        fail(
+            message="workshop validate failed",
+            payload={
+                "command": "workshop validate",
+                "errors": list(result.errors),
+                "grammar": grammar,
+                "output_dir": str(output_dir),
+                "status": "error",
+            },
+        )
 
-    for error in result.errors:
-        typer.echo(error, err=True)
-    raise typer.Exit(code=1)
+    emit(
+        payload={"command": "workshop validate", "grammar": grammar, "output_dir": str(output_dir), "status": "ok"},
+        text="workshop validate: OK",
+        quiet_text="ok",
+    )
+    raise typer.Exit(code=0)

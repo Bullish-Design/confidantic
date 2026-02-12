@@ -3,47 +3,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-import json
 from typing import Literal
 
 import typer
 
 from confidantic.workshop.logging import WorkshopEvent, WorkshopLogReader
 
+from .output import emit
+
 app = typer.Typer(help="Workshop provenance log commands.", no_args_is_help=True)
-
-
-@app.command("show")
-def show(
-    limit: int = typer.Option(20, "--limit", help="Max events to show."),
-    grammar: str | None = typer.Option(None, "--grammar", help="Filter by grammar."),
-    stage: str | None = typer.Option(None, "--stage", help="Filter by stage."),
-    failures_only: bool = typer.Option(False, "--failures-only", help="Show only failures."),
-) -> None:
-    """Show recent workshop log events."""
-    reader = WorkshopLogReader()
-    events = reader.get_recent(limit=limit)
-    if grammar is not None:
-        events = [event for event in events if event.grammar == grammar]
-    if stage is not None:
-        events = [event for event in events if event.stage == stage]
-    if failures_only:
-        events = [event for event in events if event.status == "failure"]
-
-    for event in events:
-        typer.echo(event.to_jsonl())
-
-
-@app.command("stats")
-def stats() -> None:
-    """Show aggregate workshop log statistics."""
-    reader = WorkshopLogReader()
-    typer.echo(json.dumps(reader.calculate_stats(), sort_keys=True))
 OutputFormat = Literal["text", "json", "jsonl"]
-
-
-def _resolve_format(format: OutputFormat, json_output: bool) -> OutputFormat:
-    return "json" if json_output else format
 
 
 def _parse_time(value: str | None) -> datetime | None:
@@ -63,12 +32,7 @@ def _parse_window(value: str | None) -> timedelta | None:
     if text.endswith("ms"):
         return timedelta(milliseconds=float(text[:-2]))
 
-    unit_map = {
-        "s": "seconds",
-        "m": "minutes",
-        "h": "hours",
-        "d": "days",
-    }
+    unit_map = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
     if text[-1:] not in unit_map:
         raise ValueError("window must end with one of: ms, s, m, h, d")
 
@@ -81,23 +45,30 @@ def _serialize_events(events: list[WorkshopEvent]) -> list[dict[str, object]]:
 
 
 def _emit_events(events: list[WorkshopEvent], *, format: OutputFormat) -> None:
-    if format == "json":
-        payload = {"count": len(events), "events": _serialize_events(events)}
-        typer.echo(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-        return
     if format == "jsonl":
-        for event in events:
-            typer.echo(event.to_jsonl())
+        lines = [event.to_jsonl() for event in events]
+        emit(payload={"count": len(events), "events": _serialize_events(events)}, text="\n".join(lines), quiet_text=str(len(events)))
         return
 
+    if format == "json":
+        emit(payload={"count": len(events), "events": _serialize_events(events)}, text=f"{len(events)} event(s)", quiet_text=str(len(events)))
+        return
+
+    lines = []
     for event in events:
         grammar = event.grammar or "-"
         duration = f" {event.duration_ms:.3f}ms" if event.duration_ms is not None else ""
         error = f" error={event.error}" if event.error else ""
-        typer.echo(
+        lines.append(
             f"{event.timestamp.isoformat().replace('+00:00', 'Z')} "
             f"{event.stage}/{event.status} grammar={grammar}{duration}{error}"
         )
+
+    emit(
+        payload={"count": len(events), "events": _serialize_events(events)},
+        text="\n".join(lines),
+        quiet_text=str(len(events)),
+    )
 
 
 @app.command("show")
@@ -108,39 +79,37 @@ def show(
     status: str | None = typer.Option(None, "--status", help="Filter by status."),
     failures_only: bool = typer.Option(False, "--failures-only", help="Show only failures."),
     format: OutputFormat = typer.Option("text", "--format", help="Output format."),
-    json_output: bool = typer.Option(False, "--json", help="Shortcut for --format json."),
 ) -> None:
     """Show recent workshop log events with optional filters."""
     selected_status = "failure" if failures_only else status
     reader = WorkshopLogReader()
     events = reader.query_events(grammar=grammar, stage=stage, status=selected_status, limit=limit)
-    _emit_events(events, format=_resolve_format(format, json_output))
+    _emit_events(events, format=format)
 
 
 @app.command("stats")
 def stats(
     format: OutputFormat = typer.Option("text", "--format", help="Output format."),
-    json_output: bool = typer.Option(False, "--json", help="Shortcut for --format json."),
 ) -> None:
     """Show aggregate workshop log statistics."""
     reader = WorkshopLogReader()
     payload = reader.calculate_stats()
-    output_format = _resolve_format(format, json_output)
 
-    if output_format in {"json", "jsonl"}:
-        typer.echo(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    if format in {"json", "jsonl"}:
+        emit(payload=payload, text="stats", quiet_text="ok")
         return
 
-    typer.echo(f"total_events: {payload['total_events']}")
-    typer.echo(f"failures: {payload['failures']}")
+    lines = [f"total_events: {payload['total_events']}", f"failures: {payload['failures']}"]
     by_stage = payload.get("by_stage", {})
     avg_duration_ms = payload.get("avg_duration_ms", {})
     if by_stage:
-        typer.echo("by_stage:")
-        for stage in sorted(by_stage):
-            avg = avg_duration_ms.get(stage)
+        lines.append("by_stage:")
+        for stage_name in sorted(by_stage):
+            avg = avg_duration_ms.get(stage_name)
             avg_segment = f" avg_ms={avg}" if avg is not None else ""
-            typer.echo(f"  - {stage}: {by_stage[stage]}{avg_segment}")
+            lines.append(f"  - {stage_name}: {by_stage[stage_name]}{avg_segment}")
+
+    emit(payload=payload, text="\n".join(lines), quiet_text=str(payload["total_events"]))
 
 
 @app.command("query")
@@ -148,33 +117,11 @@ def query(
     grammar: str | None = typer.Option(None, "--grammar", help="Filter by grammar."),
     stage: str | None = typer.Option(None, "--stage", help="Filter by stage."),
     status: str | None = typer.Option(None, "--status", help="Filter by status."),
-    limit: int | None = typer.Option(None, "--limit", min=1, help="Limit output records."),
-) -> None:
-    """Query workshop log events and emit deterministic JSON array output."""
-    reader = WorkshopLogReader()
-    events = sorted(reader.read_all(), key=lambda event: event.timestamp)
-
-    if grammar is not None:
-        events = [event for event in events if event.grammar == grammar]
-    if stage is not None:
-        events = [event for event in events if event.stage == stage]
-    if status is not None:
-        events = [event for event in events if event.status == status]
-    if limit is not None:
-        events = events[-limit:]
-
-    payload = [event.model_dump(mode="json") for event in events]
-    typer.echo(json.dumps(payload, sort_keys=True))
     since: str | None = typer.Option(None, "--since", help="Inclusive lower timestamp bound (ISO-8601)."),
     until: str | None = typer.Option(None, "--until", help="Inclusive upper timestamp bound (ISO-8601)."),
-    window: str | None = typer.Option(
-        None,
-        "--window",
-        help="Relative time window ending now (e.g. 30m, 2h, 1d, 500ms).",
-    ),
+    window: str | None = typer.Option(None, "--window", help="Relative time window ending now (e.g. 30m, 2h, 1d, 500ms)."),
     limit: int | None = typer.Option(None, "--limit", min=1, help="Optional max number of events."),
     format: OutputFormat = typer.Option("text", "--format", help="Output format."),
-    json_output: bool = typer.Option(False, "--json", help="Shortcut for --format json."),
 ) -> None:
     """Query workshop events using explicit filtering predicates."""
     try:
@@ -199,4 +146,4 @@ def query(
         until=until_dt,
         limit=limit,
     )
-    _emit_events(events, format=_resolve_format(format, json_output))
+    _emit_events(events, format=format)
