@@ -9,7 +9,7 @@ This guide describes the target architecture and execution model for Confidantic
 Confidantic consists of:
 
 - devenv integration layer (module + shell/tooling contract)
-- Python core (models, loaders, resolver, redaction, snapshot, fingerprint)
+- Python core (models, loaders, normalization/merge, redaction, snapshot, fingerprint, validation pipeline)
 - CUE integration layer (export + vet wrapper)
 - Just recipe layer (developer/CI workflows)
 
@@ -29,7 +29,7 @@ confidantic/
       context.py
       loader_toml.py
       loader_jsonl.py
-      resolver.py
+      pipeline.py
       merge.py
       redaction.py
       fingerprint.py
@@ -37,7 +37,7 @@ confidantic/
       errors.py
     models/
       base.py
-      registry.py
+      runtime.py
       resolved.py
       metadata.py
     cue_export/
@@ -72,13 +72,13 @@ Shared Pydantic base model with:
 - stable serialization support
 - `to_redacted_dict()` helper
 
-### 3.2 `RegistryConfig`
+### 3.2 `RuntimeConfig`
 
-Loaded from `confidantic.toml`, includes:
+Loaded from `confidantic.toml`, focused on runtime workflow contracts:
 
-- `profile_default`
-- module declarations and deterministic order
-- dataset declarations and record model bindings
+- model export targets for schema generation
+- CUE invocation options (flags, wrappers, path conventions)
+- validation input/output paths for snapshots and datasets
 - policy flags (including JSONL strict mode)
 
 ### 3.3 `DevmanContext`
@@ -89,9 +89,9 @@ Serializable runtime context for explicit runtime metadata and overrides.
 
 Canonical resolved artifact containing:
 
-- metadata (profile, modules, fingerprint)
-- resolved config object
-- resolved dataset payloads
+- metadata (validation target, schema set, fingerprint)
+- normalized config snapshot
+- normalized dataset payloads
 - redacted serialization path
 
 ---
@@ -136,18 +136,15 @@ Implementation should be pure-function oriented and deterministic.
 
 ---
 
-## 6) Resolver orchestration
+## 6) Validation pipeline
 
-Resolver flow:
+Pipeline flow:
 
-1. choose profile using precedence contract
-2. load registry
-3. load selected profile overlay
-4. load modules in declared deterministic order
-5. load datasets
-6. apply explicit runtime overrides/context
-7. produce `ResolvedBundle`
-8. compute fingerprint from normalized redacted snapshot
+1. load validation input (resolved config snapshot and/or dataset payload)
+2. normalize into canonical deterministic shape
+3. produce redacted-safe snapshot representation
+4. run `cue vet` against exported schemas
+5. surface validation results with stable, machine-readable output
 
 ---
 
@@ -241,14 +238,13 @@ Recipes should be composable and CI-friendly.
 
 Unit coverage:
 
-- profile precedence
 - merge semantics and all list policies
 - JSONL warning behavior and strict-mode aggregated errors
 - redaction recursion
 
 Integration coverage:
 
-- deterministic resolved bundle generation
+- deterministic validation pipeline output generation
 - stable snapshot serialization
 - schema export artifacts and `cue fmt`
 - schema vet success/failure paths
