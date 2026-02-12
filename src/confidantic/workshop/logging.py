@@ -186,6 +186,32 @@ class WorkshopLogReader:
         events = sorted(self.read_all(), key=lambda event: event.timestamp)
         return events[-limit:]
 
+    def query_events(
+        self,
+        *,
+        grammar: str | None = None,
+        stage: str | None = None,
+        status: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int | None = None,
+    ) -> list[WorkshopEvent]:
+        """Return events matching explicit filter predicates."""
+        events = sorted(self.read_all(), key=lambda event: event.timestamp)
+        if grammar is not None:
+            events = [event for event in events if event.grammar == grammar]
+        if stage is not None:
+            events = [event for event in events if event.stage == stage]
+        if status is not None:
+            events = [event for event in events if event.status == status]
+        if since is not None:
+            events = [event for event in events if event.timestamp >= since]
+        if until is not None:
+            events = [event for event in events if event.timestamp <= until]
+        if limit is not None:
+            events = events[-limit:]
+        return events
+
     def calculate_stats(self) -> dict[str, Any]:
         events = self.read_all()
         by_stage: dict[str, list[float]] = {}
