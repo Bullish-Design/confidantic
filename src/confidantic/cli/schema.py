@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -11,6 +12,26 @@ from confidantic.workshop.services import generate_workshop_schemas, validate_wo
 from .output import emit, fail
 
 app = typer.Typer(help="Schema plumbing commands.", no_args_is_help=True)
+
+
+def _emit_schema_vet_failure(*, output_dir: Path, grammar: str | None, message: str, errors: list[str]) -> None:
+    """Emit schema vet failures as machine-parseable JSON on stderr."""
+    typer.echo(
+        json.dumps(
+            {
+                "command": "schema vet",
+                "errors": errors,
+                "grammar": grammar,
+                "message": message,
+                "ok": False,
+                "output_dir": str(output_dir),
+                "status": "error",
+            },
+            sort_keys=True,
+        ),
+        err=True,
+    )
+    raise typer.Exit(code=1)
 
 
 @app.command("export")
@@ -64,26 +85,32 @@ def vet(
     try:
         result = validate_workshop_output(output_dir=output_dir, grammar=grammar)
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(ctx, message=f"schema vet failed: {exc}", payload={"command": "schema vet", "status": "error"})
+        _emit_schema_vet_failure(
+            output_dir=output_dir,
+            grammar=grammar,
+            message=f"schema vet failed: {exc}",
+            errors=[str(exc)],
+        )
 
     if not result.ok:
-        fail(
-            ctx,
-            message="schema vet failed",
-            payload={
-                "command": "schema vet",
-                "errors": list(result.errors),
-                "grammar": grammar,
-                "output_dir": str(output_dir),
-                "status": "error",
-            },
-        )
+        _emit_schema_vet_failure(
+            output_dir=output_dir,
+            grammar=grammar,
+        fail(ctx, message=f"schema vet failed: {exc}", payload={"command": "schema vet", "status": "error"})
+
+#     if not result.ok:
+#         fail(
+#             ctx,
+#             message="schema vet failed",
+#             errors=list(result.errors),
+#         )
 
     emit(
         ctx,
         payload={
             "command": "schema vet",
             "grammar": grammar,
+            "ok": True,
             "output_dir": str(output_dir),
             "status": "ok",
         },
