@@ -150,7 +150,39 @@ Confidantic must support redaction across nested structures, including secret ty
 - `confidantic env`
 - `confidantic fingerprint`
 
-### 8.2 Just recipes
+### 8.2 MVP quickstart commands
+
+In an MVP checkout of this repository:
+
+- The root `justfile` (`./justfile`) currently exposes `just test` only.
+- Confidantic workflow recipes are not expected to exist in the root `justfile`.
+- Recipe targets below are provided by `devenv/just/confidantic.just` when the module is integrated (typically surfaced via `CONFIDANTIC_JUSTFILE`).
+
+Prefer CUE-wrapped flows for schema/config tasks:
+
+- `just -f "$CONFIDANTIC_JUSTFILE" schema:export`
+- `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt`
+- `just -f "$CONFIDANTIC_JUSTFILE" schema:vet`
+- `just -f "$CONFIDANTIC_JUSTFILE" config:validate`
+- `just -f "$CONFIDANTIC_JUSTFILE" config:dump`
+
+Plumbing CLI remains valid:
+
+- `confidantic validate`
+- `confidantic dump --format json`
+
+| Goal | Command | Where defined |
+| --- | --- | --- |
+| Run repository checks in MVP checkout | `just test` | Root `./justfile` |
+| Export CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:export` | `devenv/just/confidantic.just` (when integrated) |
+| Format CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt` | `devenv/just/confidantic.just` (when integrated) |
+| Vet schema/data via CUE (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:vet` | `devenv/just/confidantic.just` (when integrated) |
+| Validate resolved config | `confidantic validate` | `confidantic` CLI |
+| Dump resolved config JSON | `confidantic dump --format json` | `confidantic` CLI |
+
+### 8.3 Just recipes
+
+Required recipe names (provided by `devenv/just/confidantic.just` when module is integrated):
 
 - `schema:export`
 - `schema:vet`
@@ -160,7 +192,7 @@ Confidantic must support redaction across nested structures, including secret ty
 - `config:env`
 - `config:fingerprint`
 
-### 8.3 Wrapper
+### 8.4 Wrapper
 
 `confidantic-cue` is the stable interface around `cue` (and `jq` shaping where needed).
 
