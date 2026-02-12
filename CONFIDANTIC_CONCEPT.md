@@ -1,118 +1,90 @@
-# Confidantic Concept (devenv.sh module + Python library + REQUIRED CUE)
+# Confidantic Concept
 
-This repository defines **Confidantic**, a ground-up, non-backwards-compatible configuration system designed to be imported as a **devenv.sh module** and used as a **Python library**, with **CUE REQUIRED** for schema formatting and validation.
+Confidantic is a deterministic configuration system for Devman-managed projects. It combines:
 
-> **Read order for agents:** `AGENTS.md` requires you to read this file first.
-
----
-
-## 1) Workflow (canonical)
-
-### 1.1 Authoring (developer experience)
-A developer (building a Devman-managed library/project) does the following to manage their library configuration:
-
-1. **Write Pydantic models** representing configuration needs.
-2. **Use those models directly in code** exactly like normal Pydantic models.
-3. Use Confidantic’s tooling to **export those models to `.cue` schemas**.
-4. Use Confidantic’s CUE tooling to **validate config/data against those schemas**.
-
-### 1.2 Tooling (Confidantic responsibility)
-Confidantic provides, via its devenv module:
-
-- the `cue` CLI (**required**)
-- additional CLI tools needed for workflows (e.g. `jq`)
-- a curated set of **Just recipes / scripts** for:
-  - exporting Pydantic models → `.cue`
-  - `cue fmt` formatting
-  - `cue vet` validation of resolved config snapshots and data files
-
-CUE is not optional, and there are no fallback paths when it is unavailable.
+1. an importable **devenv module**,
+2. a **Python library** built on Pydantic, and
+3. a **required CUE workflow** for schema formatting and validation.
 
 ---
 
-## 2) Design tenets
+## 1) Canonical workflow
 
-### 2.1 Just-first execution
-Confidantic may ship a small CLI, but it is *plumbing*, not a task runner. Typical usage is via `just` recipes that call:
+A developer should be able to:
 
-- `confidantic validate`
-- `confidantic dump`
-- `confidantic env`
-- `confidantic fingerprint`
+1. Define configuration/data models in Pydantic.
+2. Resolve layered config from `.devman/.config` with deterministic behavior.
+3. Export model schemas to CUE.
+4. Validate snapshots and datasets with CUE.
 
-### 2.2 The devenv module always sets `CONFIDANTIC_ROOT`
-When the module is imported, shells and tasks must have access to the project’s config directory:
-
-- `CONFIDANTIC_ROOT = <repo_root>/.devman/.config`
-
-Additionally:
-- the module should **ensure the directory exists** (e.g., `mkdir -p "$CONFIDANTIC_ROOT"` on shell entry)
-
-### 2.3 Profile selection is config-led, not env-led
-The devenv module **does not** set `CONFIDANTIC_PROFILE`.
-
-Profile comes from:
-1) explicit API argument (highest precedence)
-2) `CONFIDANTIC_PROFILE` if explicitly set by a caller/CI
-3) `confidantic.toml` default (`profile_default`)
-4) fallback `"default"`
-
-### 2.4 Pydantic is the runtime source-of-truth
-Confidantic uses Pydantic models to define schemas, defaults, validation rules, and redaction behavior. Baseclasses are provided that represent the core object/type functionality CUE provides.
-
-### 2.5 CUE is the validation and schema-linting engine
-- Confidantic exports `.cue` schemas derived from Pydantic models.
-- Confidantic uses CUE for:
-  - schema formatting (`cue fmt`)
-  - schema + instance validation (`cue vet`)
-  - deterministic, reviewable validation behavior
+Confidantic provides the commands and recipes that make this flow standard and repeatable.
 
 ---
 
-## 3) Repository shape (monorepo)
+## 2) Design principles
 
-Recommended structure:
+### 2.1 Pydantic is runtime source-of-truth
 
-```
-confidantic/
-  pyproject.toml
-  src/confidantic/
-    core/
-    models/
-    cli.py
-    cue_export/              # Pydantic -> CUE export logic
-    ...
-  templates/
-    devman/
-      confidantic_component/ # Devman template payload(s)
-  build/                     # generated artifacts (ignored)
-```
+Pydantic models define shape, defaults, and validation behavior used by the runtime resolver.
+
+### 2.2 CUE is required for schema workflows
+
+Confidantic uses CUE for:
+
+- formatting (`cue fmt`)
+- validation (`cue vet`)
+
+No non-CUE fallback is part of the architecture.
+
+### 2.3 Just-first, CLI-plumbing architecture
+
+The CLI is intentionally minimal. Most developer and CI interaction should happen through include-able `just` recipes.
+
+### 2.4 Determinism first
+
+Resolution order, merge behavior, and serialized snapshots must be stable and reviewable.
+
+### 2.5 Safety first
+
+Redaction and safe logging are default expectations.
 
 ---
 
-## 4) Filesystem contract
+## 3) Filesystem and environment contract
 
-### 4.1 The config root
-Within a project/repo using Confidantic, the canonical config root is:
+### 3.1 Config root
 
-```
-<repo_root>/.devman/.config/
-```
+Canonical configuration root:
 
-And the devenv module exports:
+`<repo_root>/.devman/.config`
+
+The devenv module must export:
 
 - `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`
+- `CONFIDANTIC_JUSTFILE=<path to include-able Confidantic justfile>`
 
-### 4.2 Registry + layout
-A typical layout:
+The module must ensure the root exists on shell entry.
 
-```
+### 3.2 Profile contract
+
+The module must **not** set `CONFIDANTIC_PROFILE`.
+
+Profile resolution precedence:
+
+1. explicit API argument
+2. externally-provided `CONFIDANTIC_PROFILE`
+3. `confidantic.toml` `profile_default`
+4. `default`
+
+### 3.3 Typical layout
+
+```text
 .devman/.config/
   confidantic.toml
   profiles/
     default.toml
     ci.toml
-    local.toml   # usually gitignored
+    local.toml
   modules/
     app.toml
     infra.toml
@@ -123,129 +95,98 @@ A typical layout:
 
 ---
 
-## 5) Resolution model (layering & precedence)
+## 4) Resolution model
 
-Confidantic supports predictable layering:
+Layering order:
 
-1) `confidantic.toml` registry (policy, activated modules, defaults)
-2) selected profile overlay (e.g. `profiles/ci.toml`)
-3) module config files (e.g. `modules/app.toml`)
-4) data files referenced by modules (e.g. `data/*.jsonl`)
-5) explicit API overrides / runtime injections (e.g. DevmanContext)
+1. registry config (`confidantic.toml`)
+2. selected profile overlay
+3. module overlays (declared deterministic order)
+4. referenced datasets
+5. explicit runtime overrides/context
 
-The system must provide a **normalized, inspectable resolved snapshot**.
+Output is a normalized resolved bundle suitable for tooling, debug, and validation.
 
 ---
 
-## 6) Merge semantics (recommended defaults)
+## 5) Merge semantics
 
-Confidantic merges overlays deterministically:
+Default merge behavior:
 
-- **dict/object**: deep-merge
-- **scalar**: replace
-- **list**: replace (default)
+- dict/object → deep merge
+- scalar → replace
+- list → replace
 
-Lists can opt into alternative policies **per-field** via Pydantic Field metadata, e.g.:
+Per-field list policies may override default behavior:
 
-- `replace` (default)
 - `append`
-- `unique` (dedupe by value)
-- `keyed:<field>` (merge list of objects by a unique key)
+- `unique`
+- `keyed:<field>`
+
+Policies are configured via field metadata and applied deterministically.
 
 ---
 
-## 7) JSONL policy (recommended defaults)
+## 6) JSONL policy
 
-- JSONL files represent **one record type per file**
-- invalid lines are **skipped with a warning** (line-indexed)
-- (optional stricter modes may exist, but CUE remains required either way)
-
----
-
-## 8) Secrets & redaction
-
-Confidantic supports safe logging:
-
-- encourage `SecretStr` / `SecretBytes` where applicable
-- allow field-level redaction flags (e.g., `Field(..., json_schema_extra={"redact": True})`)
-- `to_redacted_dict()` masks secrets, including nested models
+- One record type per file.
+- Parse line-by-line.
+- Invalid JSON lines generate warnings with file + line number.
+- Strict mode can collect all errors and fail with a summary.
 
 ---
 
-## 9) Devenv module contract (importable module `confidantic`)
+## 7) Redaction and safe output
 
-When imported, the module provides:
+Confidantic must support redaction across nested structures, including secret types and explicitly marked fields.
 
-### 9.1 Environment variables
-- `CONFIDANTIC_ROOT` (always set)
-- `CONFIDANTIC_JUSTFILE` (path to an include-able justfile with Confidantic recipes)
-- the module must **not** set `CONFIDANTIC_PROFILE`
-
-### 9.2 Tooling (all required)
-- Python env including the `confidantic` package
-- `confidantic` CLI on `PATH`
-- `cue` on `PATH`
-- `jq` on `PATH` (used to shape JSON snapshots and/or per-module exports)
-
-### 9.3 Shell hooks
-- ensure `CONFIDANTIC_ROOT` exists
-- optionally print a one-line hint if the root is empty (first-time initialization)
+`to_redacted_dict()` is the standard safe representation for logs and default CLI output.
 
 ---
 
-## 10) Required CUE workflow
+## 8) Required commands
 
-### 10.1 Export Pydantic models → `.cue`
-Confidantic must provide a script/recipe to export schemas that are built on the Confidantic provided ConfigBase:
+### 8.1 CLI
 
-- `just schema:export`
-  - discovers the project’s Confidantic model entrypoints (implementation-defined)
-  - exports `.cue` files to `./build/schemas/cue/`
-  - runs `cue fmt` on the output
+- `confidantic validate`
+- `confidantic dump --format json`
+- `confidantic env`
+- `confidantic fingerprint`
 
-Notes:
-- Export output is a build artifact during normal development.
-- The same export step is used later in tag-based releases to publish schema artifacts.
+### 8.2 Just recipes
 
-### 10.2 Validate resolved config snapshots with `cue vet`
-Confidantic must provide a recipe:
+- `schema:export`
+- `schema:vet`
+- `data:vet`
+- `config:validate`
+- `config:dump`
+- `config:env`
+- `config:fingerprint`
 
-- `just schema:vet`
-  1) `confidantic dump --format json` → `./build/resolved.json`
-  2) `confidantic-cue vet ./build/resolved.json ./build/schemas/cue/...`
+### 8.3 Wrapper
 
-`confidantic-cue` is the stable wrapper that:
-- ensures correct CUE module/schema paths
-- performs any required `jq` shaping to match schema expectations
-- runs the correct `cue` subcommands with consistent flags
-
-### 10.3 Validate JSONL datasets
-Confidantic must provide a recipe:
-
-- `just data:vet`
-  - validates JSONL records against the corresponding `.cue` schema (record-type specific)
-  - continues to follow Confidantic’s JSONL parsing policy (warn/skip invalid JSON lines), but **schema validation is done via CUE**
+`confidantic-cue` is the stable interface around `cue` (and `jq` shaping where needed).
 
 ---
 
-## 11) Tagged releases (future pipeline)
+## 9) Export and validation workflow
 
-At tagged releases, a CI/CD pipeline may:
-- run `schema:export` and `schema:vet`
-- publish the exported `.cue` schemas as release artifacts (or on a release branch/tag commit)
+- Export designated schema models to `./build/schemas/cue/`.
+- Format schemas with `cue fmt`.
+- Validate resolved snapshot JSON with `cue vet`.
+- Validate dataset records with `cue vet` against record schemas.
 
-This does not change the day-to-day rule: CUE is required for validation and formatting.
-
----
-
-## 12) What “non-backwards compatible” means here
-
-- this repo/module defines the **canonical** Confidantic behavior going forward
-- compatibility shims should live outside the core library unless explicitly required
+All generated artifacts are build outputs.
 
 ---
 
-## 13) Related docs
+## 10) Definition of done
 
-- **Implementation guidance for agents:** `AGENTS.md`
-- **Integration skill for other libraries:** `CREATE_CONFIG.md`
+Confidantic is complete when:
+
+1. devenv contract is fully satisfied (`CONFIDANTIC_ROOT`, `CONFIDANTIC_JUSTFILE`, required PATH tooling, profile behavior).
+2. resolver behavior is deterministic and test-covered.
+3. snapshot output is stable and safe by default.
+4. CUE export + vet workflows are operational through wrapper and recipes.
+5. CLI remains plumbing-only and delegates business logic to core services.
+6. tests cover profile precedence, merge policies, JSONL warnings/strict behavior, redaction, and schema/data vet paths.
