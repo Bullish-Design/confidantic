@@ -9,6 +9,9 @@ import json
 from pathlib import Path
 from typing import Any, ClassVar
 
+_REDACTED = "[REDACTED]"
+_SENSITIVE_KEYS = ("secret", "token", "password", "api_key", "private_key", "credential")
+
 
 def _to_jsonable(value: Any) -> Any:
     if isinstance(value, Path):
@@ -22,6 +25,34 @@ def _to_jsonable(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(k): _to_jsonable(v) for k, v in value.items()}
     return value
+
+
+def to_redacted_dict(value: Any) -> Any:
+    """Return a recursively redacted representation safe for logs and snapshots."""
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    elif hasattr(value, "__dataclass_fields__"):
+        value = asdict(value)
+
+    if isinstance(value, dict):
+        output: dict[str, Any] = {}
+        for key, item in value.items():
+            key_str = str(key)
+            if any(flag in key_str.lower() for flag in _SENSITIVE_KEYS):
+                output[key_str] = _REDACTED
+            else:
+                output[key_str] = to_redacted_dict(item)
+        return output
+
+    if isinstance(value, list):
+        return [to_redacted_dict(item) for item in value]
+
+    if isinstance(value, str):
+        if "/" in value or "\\" in value:
+            return _REDACTED
+        return value
+
+    return _to_jsonable(value)
 
 
 @dataclass(slots=True)

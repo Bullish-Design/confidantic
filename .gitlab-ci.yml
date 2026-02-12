@@ -1,0 +1,10 @@
+stages:
+  - test
+
+phase6_quality_gates:
+  image: python:3.12
+  stage: test
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -e '.[dev]'
+    - python scripts/ci/phase6_quality_gates.py all

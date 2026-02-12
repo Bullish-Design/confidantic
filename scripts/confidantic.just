@@ -131,3 +131,24 @@ config:env:
 
 config:fingerprint:
     @confidantic fingerprint
+
+# ---------------------------------------------------------------------------
+# Phase 6 quality gates (CI/CD equivalent via Python runner)
+# ---------------------------------------------------------------------------
+
+ci:test:
+    @python scripts/ci/phase6_quality_gates.py test
+
+ci:quality:
+    @python scripts/ci/phase6_quality_gates.py quality
+
+ci:performance:
+    @python scripts/ci/phase6_quality_gates.py performance
+
+ci:e2e:
+    @python scripts/ci/phase6_quality_gates.py e2e
+
+ci:check: ci:test ci:quality ci:performance
+
+ci:all: ci:check ci:e2e
+    @echo "✓ All CI checks passed"
