@@ -2,47 +2,98 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
+from json import JSONDecodeError
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Literal
 
 from .models import NodeTypes, QueryCapture, QueryFile, WorkshopEvent, WorkshopInput
 
-_CAPTURE_PATTERN = re.compile(r"@[A-Za-z0-9_.:-]+")
+QueryType = Literal[
+    "highlights",
+    "tags",
+    "locals",
+    "injections",
+    "folds",
+    "indents",
+    "textobjects",
+]
+
+_CAPTURE_PATTERN = re.compile(r"@(?P<name>[A-Za-z0-9_.:-]+)")
 
 
-def load_node_types(node_types_path: str | Path) -> NodeTypes:
-    """Load and normalize a ``node-types.json`` file."""
-    path = Path(node_types_path)
-    data = json.loads(path.read_text(encoding="utf-8"))
+def _json_error_with_context(path: Path, error: JSONDecodeError, kind: str) -> ValueError:
+    message = (
+        f"Failed to parse {kind} JSON at {path}: "
+        f"line {error.lineno}, column {error.colno} (char {error.pos}): {error.msg}"
+    )
+    return ValueError(message)
+
+
+def load_node_types(path: Path) -> NodeTypes:
+    """Load and normalize a ``node-types.json`` file with contextual parse errors."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"Unable to read node-types file at {path}: {error}") from error
+
+    try:
+        data = json.loads(text)
+    except JSONDecodeError as error:
+        raise _json_error_with_context(path, error, "node-types") from error
+
     if not isinstance(data, list):
-        raise ValueError(f"Expected list in node-types file: {path}")
+        raise ValueError(f"Expected top-level JSON array in node-types file: {path}")
+
     return NodeTypes(nodes=data)
 
 
-def load_query_file(query_file_path: str | Path, query_type: str | None = None) -> QueryFile:
-    """Load one ``.scm`` query file and extract deterministic capture names."""
-    path = Path(query_file_path)
-    content = path.read_text(encoding="utf-8")
-    resolved_query_type = query_type or path.stem
+def load_query_file(path: Path, query_type: QueryType) -> QueryFile:
+    """Load one ``.scm`` query file and extract deterministic capture names with line numbers."""
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"Unable to read query file at {path}: {error}") from error
 
-    captures = sorted(set(_CAPTURE_PATTERN.findall(content)))
-    capture_models = [QueryCapture(name=name) for name in captures]
+    captures: list[QueryCapture] = []
+    for line_number, line in enumerate(content.splitlines(), start=1):
+        for match in _CAPTURE_PATTERN.finditer(line):
+            captures.append(
+                QueryCapture(
+                    name=f"@{match.group('name')}",
+                    line=line_number,
+                )
+            )
 
     return QueryFile(
-        query_type=resolved_query_type,
+        query_type=query_type,
         file_path=path,
         content=content,
-        captures=capture_models,
+        captures=sorted(captures, key=lambda capture: (capture.name, capture.line or 0)),
     )
 
 
-def discover_query_files(queries_dir: str | Path) -> list[Path]:
-    """Discover ``.scm`` files in deterministic order."""
-    directory = Path(queries_dir)
-    return sorted(p for p in directory.glob("*.scm") if p.is_file())
+def discover_query_files(queries_dir: Path, required: list[str] | None = None) -> list[Path]:
+    """Discover visible ``.scm`` files in deterministic order and enforce required filenames."""
+    if not queries_dir.exists() or not queries_dir.is_dir():
+        raise ValueError(f"Queries directory does not exist or is not a directory: {queries_dir}")
+
+    query_files = sorted(
+        path
+        for path in queries_dir.iterdir()
+        if path.is_file() and path.suffix == ".scm" and not path.name.startswith(".")
+    )
+
+    if required:
+        discovered_names = {path.name for path in query_files}
+        missing = sorted(name for name in required if name not in discovered_names)
+        if missing:
+            missing_list = ", ".join(missing)
+            raise ValueError(f"Missing required query file(s) in {queries_dir}: {missing_list}")
+
+    return query_files
 
 
 def load_workshop_input(
@@ -51,8 +102,16 @@ def load_workshop_input(
     queries_dir: str | Path,
 ) -> WorkshopInput:
     """Load canonical workshop inputs from Tree-sitter artifact paths."""
-    node_types = load_node_types(node_types_path)
-    query_files = [load_query_file(path) for path in discover_query_files(queries_dir)]
+    resolved_node_types_path = Path(node_types_path)
+    resolved_queries_dir = Path(queries_dir)
+
+    node_types = load_node_types(resolved_node_types_path)
+    query_paths = discover_query_files(resolved_queries_dir)
+    query_files = [load_query_file(path, query_type=path.stem) for path in query_paths]
+
+    # Timestamp captured for deterministic, UTC-scoped orchestration diagnostics.
+    _ = datetime.now(timezone.utc)
+
     return WorkshopInput(
         grammar_name=grammar_name,
         node_types=node_types,
@@ -60,13 +119,45 @@ def load_workshop_input(
     )
 
 
-def log_workshop_event(event: WorkshopEvent, log_file_path: str | Path) -> None:
-    """Append one workshop event to a JSONL log file."""
+def append_jsonl_record(record: dict[str, Any], log_file_path: str | Path) -> None:
+    """Append one JSON object as a single JSONL line; create parent directory as needed."""
     path = Path(log_file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(event.to_jsonl())
+        handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")))
         handle.write("\n")
+
+
+def read_jsonl_records(log_file_path: str | Path) -> list[dict[str, Any]]:
+    """Read JSONL records line-by-line, skipping blanks and reporting invalid lines."""
+    path = Path(log_file_path)
+    if not path.exists():
+        return []
+
+    records: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            record = line.strip()
+            if not record:
+                continue
+            try:
+                payload = json.loads(record)
+            except JSONDecodeError as error:
+                raise ValueError(
+                    f"Invalid JSONL record in {path} at line {line_number}: "
+                    f"{error.msg} (column {error.colno})"
+                ) from error
+
+            if not isinstance(payload, dict):
+                raise ValueError(f"Invalid JSONL record in {path} at line {line_number}: expected object")
+            records.append(payload)
+
+    return records
+
+
+def log_workshop_event(event: WorkshopEvent, log_file_path: str | Path) -> None:
+    """Append one workshop event to a JSONL log file."""
+    append_jsonl_record(event.model_dump(mode="json"), log_file_path)
 
 
 def load_workshop_event(payload: dict[str, Any] | str) -> WorkshopEvent:
@@ -78,24 +169,14 @@ def load_workshop_event(payload: dict[str, Any] | str) -> WorkshopEvent:
 
 def load_workshop_events(log_file_path: str | Path) -> list[WorkshopEvent]:
     """Load workshop events from JSONL file line-by-line."""
-    path = Path(log_file_path)
-    if not path.exists():
-        return []
-
     events: list[WorkshopEvent] = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            record = line.strip()
-            if not record:
-                continue
-            payload = json.loads(record)
-            if "timestamp" in payload and isinstance(payload["timestamp"], str):
-                try:
-                    payload["timestamp"] = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
-                except ValueError:
-                    pass
-            events.append(load_workshop_event(payload))
-
+    for payload in read_jsonl_records(log_file_path):
+        if "timestamp" in payload and isinstance(payload["timestamp"], str):
+            try:
+                payload["timestamp"] = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        events.append(load_workshop_event(payload))
     return events
 
 

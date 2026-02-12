@@ -72,6 +72,7 @@ class QueryCapture:
     model_fields: ClassVar[dict[str, Any]] = {"name": str}
 
     name: str
+    line: int | None = None
     pattern: str | None = None
     line_number: int = 0
 
@@ -112,7 +113,7 @@ class QueryFile:
                 normalized.append(capture)
             else:
                 normalized.append(QueryCapture(**capture))
-        self.captures = sorted(normalized, key=lambda c: (c.name, c.line_number))
+        self.captures = sorted(normalized, key=lambda c: (c.name, c.line if c.line is not None else -1))
 
 
 @dataclass(slots=True)
