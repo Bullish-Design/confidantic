@@ -161,10 +161,10 @@ class TestPhase3JustRecipes:
 
             # Check for key workshop recipes
             expected_recipes = [
-                "cue:from-ts:generate",
-                "cue:from-ts:fmt",
-                "cue:from-ts:vet",
-                "cue:from-ts:workshop",
+                "cue-from-ts-generate",
+                "cue-from-ts-fmt",
+                "cue-from-ts-vet",
+                "cue-from-ts-workshop",
             ]
 
             missing_recipes = []

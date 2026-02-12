@@ -7,7 +7,7 @@ build_dir := "build"
 schemas_dir := build_dir + "/schemas/cue"
 treesitter_dir := build_dir + "/treesitter"
 
-cue:from-ts:generate grammar:
+cue-from-ts-generate grammar:
     @node_types="{{treesitter_dir}}/{{grammar}}/node-types.json"; \
     queries_dir="{{treesitter_dir}}/{{grammar}}/queries"; \
     output_dir="{{schemas_dir}}/{{grammar}}"; \
@@ -30,40 +30,40 @@ cue:from-ts:generate grammar:
       --queries-dir "$queries_dir" \
       --output-dir "$output_dir"
 
-cue:from-ts:fmt grammar:
+cue-from-ts-fmt grammar:
     @output_dir="{{schemas_dir}}/{{grammar}}"; \
     if [[ ! -d "$output_dir" ]]; then \
       echo "error: missing generated schema directory: $output_dir" >&2; \
-      echo "hint: run 'just cue:from-ts:generate {{grammar}}' first" >&2; \
+      echo "hint: run 'just cue-from-ts-generate {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     if ! compgen -G "$output_dir/*.cue" >/dev/null; then \
       echo "error: no generated CUE files found in: $output_dir" >&2; \
-      echo "hint: run 'just cue:from-ts:generate {{grammar}}' first" >&2; \
+      echo "hint: run 'just cue-from-ts-generate {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     confidantic-cue fmt "$output_dir"
 
-cue:from-ts:vet grammar:
+cue-from-ts-vet grammar:
     @output_dir="{{schemas_dir}}/{{grammar}}"; \
     if [[ ! -d "$output_dir" ]]; then \
       echo "error: missing generated schema directory: $output_dir" >&2; \
-      echo "hint: run 'just cue:from-ts:generate {{grammar}}' first" >&2; \
+      echo "hint: run 'just cue-from-ts-generate {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     if ! compgen -G "$output_dir/*.cue" >/dev/null; then \
       echo "error: no generated CUE files found in: $output_dir" >&2; \
-      echo "hint: run 'just cue:from-ts:generate {{grammar}}' first" >&2; \
+      echo "hint: run 'just cue-from-ts-generate {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     confidantic-cue vet "$output_dir"
 
-cue:from-ts:test grammar:
-    @just --justfile {{justfile()}} cue:from-ts:generate "{{grammar}}"; \
-    just --justfile {{justfile()}} cue:from-ts:fmt "{{grammar}}"; \
-    just --justfile {{justfile()}} cue:from-ts:vet "{{grammar}}"
+cue-from-ts-test grammar:
+    @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
+    just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"; \
+    just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
-cue:from-ts:doctor grammar:
+cue-from-ts-doctor grammar:
     @node_types="{{treesitter_dir}}/{{grammar}}/node-types.json"; \
     queries_dir="{{treesitter_dir}}/{{grammar}}/queries"; \
     if [[ ! -f "$node_types" ]]; then \
@@ -79,11 +79,11 @@ cue:from-ts:doctor grammar:
       --node-types "$node_types" \
       --queries-dir "$queries_dir"
 
-cue:from-ts:workshop grammar:
-    @just --justfile {{justfile()}} cue:from-ts:doctor "{{grammar}}"; \
-    just --justfile {{justfile()}} cue:from-ts:test "{{grammar}}"
+cue-from-ts-workshop grammar:
+    @just --justfile {{justfile()}} cue-from-ts-doctor "{{grammar}}"; \
+    just --justfile {{justfile()}} cue-from-ts-test "{{grammar}}"
 
-cue:from-ts:clean grammar:
+cue-from-ts-clean grammar:
     @output_dir="{{schemas_dir}}/{{grammar}}"; \
     rm -rf "$output_dir"; \
     echo "cleaned $output_dir"
@@ -100,11 +100,11 @@ cue:from-ts:clean grammar:
 #   - CUE outputs: build/schemas/cue/<grammar>/
 
 schema:export grammar=compat_grammar:
-    @just --justfile {{justfile()}} cue:from-ts:generate "{{grammar}}"; \
-    just --justfile {{justfile()}} cue:from-ts:fmt "{{grammar}}"
+    @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
+    just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
 
 schema:vet grammar=compat_grammar:
-    @just --justfile {{justfile()}} cue:from-ts:vet "{{grammar}}"
+    @just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
 data:vet grammar=compat_grammar data_path=compat_data_path:
     @schema_dir="{{schemas_dir}}/{{grammar}}"; \

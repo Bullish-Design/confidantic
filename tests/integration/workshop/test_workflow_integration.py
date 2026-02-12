@@ -84,13 +84,13 @@ def test_workflow_happy_path_generate_fmt_vet(
     workshop_project: Path,
     workshop_env: dict[str, str],
 ) -> None:
-    result_generate = _run_just("cue:from-ts:generate python", workshop_project, workshop_env)
+    result_generate = _run_just("cue-from-ts-generate python", workshop_project, workshop_env)
     assert result_generate.returncode == 0, result_generate.stderr
 
-    result_fmt = _run_just("cue:from-ts:fmt python", workshop_project, workshop_env)
+    result_fmt = _run_just("cue-from-ts-fmt python", workshop_project, workshop_env)
     assert result_fmt.returncode == 0, result_fmt.stderr
 
-    result_vet = _run_just("cue:from-ts:vet python", workshop_project, workshop_env)
+    result_vet = _run_just("cue-from-ts-vet python", workshop_project, workshop_env)
     assert result_vet.returncode == 0, result_vet.stderr
 
     generated_dir = workshop_project / "build" / "schemas" / "cue" / "python"
@@ -105,14 +105,14 @@ def test_generate_fails_with_missing_required_inputs(
     tmp_path: Path,
     workshop_env: dict[str, str],
 ) -> None:
-    missing_node_types = _run_just("cue:from-ts:generate python", tmp_path, workshop_env)
+    missing_node_types = _run_just("cue-from-ts-generate python", tmp_path, workshop_env)
     assert missing_node_types.returncode == 1
 
     treesitter_dir = tmp_path / "build" / "treesitter" / "python"
     treesitter_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(FIXTURES_ROOT / "node-types.json", treesitter_dir / "node-types.json")
 
-    missing_queries = _run_just("cue:from-ts:generate python", tmp_path, workshop_env)
+    missing_queries = _run_just("cue-from-ts-generate python", tmp_path, workshop_env)
     assert missing_queries.returncode == 1
 
 
@@ -120,7 +120,7 @@ def test_workshop_one_shot_runs_generate_fmt_and_vet(
     workshop_project: Path,
     workshop_env: dict[str, str],
 ) -> None:
-    result = _run_just("cue:from-ts:workshop python", workshop_project, workshop_env)
+    result = _run_just("cue-from-ts-workshop python", workshop_project, workshop_env)
     assert result.returncode == 0, result.stderr
 
     cue_log = Path(workshop_env["CONFIDANTIC_CUE_LOG"])

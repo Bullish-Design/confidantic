@@ -5,12 +5,18 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Literal
 
 import typer
 
 app = typer.Typer(help="Migration plumbing commands.", no_args_is_help=True)
+
+
+class MigrateFormat(str, Enum):
+    """Output format options for migrate commands."""
+    JSON = "json"
+    TEXT = "text"
 
 
 @dataclass(frozen=True)
@@ -79,8 +85,8 @@ def _apply_migration(text: str) -> tuple[str, int]:
     return "".join(updated_lines), replacements
 
 
-def _emit(payload: dict[str, object], *, format: Literal["json", "text"]) -> None:
-    if format == "json":
+def _emit(payload: dict[str, object], *, format: MigrateFormat) -> None:
+    if format == MigrateFormat.JSON:
         typer.echo(json.dumps(payload, sort_keys=True))
         return
 
@@ -93,7 +99,7 @@ def _emit(payload: dict[str, object], *, format: Literal["json", "text"]) -> Non
 @app.command("check")
 def check(
     path: Path = typer.Option(Path("confidantic.toml"), "--path", help="Path to TOML config file."),
-    format: Literal["json", "text"] = typer.Option("json", "--format", help="Output format."),
+    format: MigrateFormat = typer.Option(MigrateFormat.JSON, "--format", help="Output format."),
 ) -> None:
     """Detect deprecated configuration patterns in a config file."""
     if not path.exists():
@@ -115,7 +121,7 @@ def check(
 def apply(
     path: Path = typer.Option(Path("confidantic.toml"), "--path", help="Path to TOML config file."),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create a .bak backup before writing."),
-    format: Literal["json", "text"] = typer.Option("json", "--format", help="Output format."),
+    format: MigrateFormat = typer.Option(MigrateFormat.JSON, "--format", help="Output format."),
 ) -> None:
     """Apply config migration for known deprecated patterns."""
     if not path.exists():
@@ -149,7 +155,7 @@ def apply(
 @app.command("doctor")
 def doctor(
     root: Path = typer.Option(Path("."), "--root", help="Project root to scan."),
-    format: Literal["json", "text"] = typer.Option("json", "--format", help="Output format."),
+    format: MigrateFormat = typer.Option(MigrateFormat.JSON, "--format", help="Output format."),
 ) -> None:
     """Run project-wide diagnostics for deprecated migration patterns."""
     if not root.exists():

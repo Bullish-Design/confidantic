@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
-from typing import Literal
 
 import typer
 
@@ -13,6 +13,14 @@ from confidantic.workshop.services import doctor_workshop_inputs, generate_works
 from .output import emit, fail
 
 app = typer.Typer(help="Workshop plumbing commands.", no_args_is_help=True)
+
+
+class DiagnosticFormat(str, Enum):
+    """Output format options for workshop doctor command."""
+    TERMINAL = "terminal"
+    JSON = "json"
+    MARKDOWN = "markdown"
+    JSONL = "jsonl"
 
 
 @app.command("generate")
@@ -59,8 +67,8 @@ def doctor(
     node_types: Path = typer.Option(..., "--node-types", help="Path to node-types.json."),
     queries_dir: Path = typer.Option(..., "--queries-dir", help="Path to query .scm directory."),
     schemas_dir: Path | None = typer.Option(None, "--schemas-dir", help="Optional generated CUE directory."),
-    format: Literal["terminal", "json", "markdown", "jsonl"] = typer.Option(
-        "terminal", "--format", help="Diagnostic output format."
+    format: DiagnosticFormat = typer.Option(
+        DiagnosticFormat.TERMINAL, "--format", help="Diagnostic output format."
     ),
     output: Path | None = typer.Option(None, "--output", help="Optional file to write report."),
 ) -> None:
@@ -76,7 +84,7 @@ def doctor(
         fail(message=f"workshop doctor failed: {exc}", payload={"command": "workshop doctor", "status": "error"})
 
     report = result.report
-    if format == "terminal":
+    if format == DiagnosticFormat.TERMINAL:
         emit(
             payload={"command": "workshop doctor", "status": "ok", "healthy": report.is_healthy()},
             text=format_diagnostic_report(report),
