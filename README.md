@@ -9,37 +9,66 @@ It provides:
 - required CUE workflows for formatting and validation,
 - just-first command surfaces for humans and agents.
 
+## Migration notice
+
+Confidantic now exposes grouped CLI commands and workshop-first recipes as the primary interface.
+
+- Existing required compatibility commands/recipes are still supported.
+- New adoption and cutover guidance is documented in [docs/MIGRATION.md](./docs/MIGRATION.md).
+- CI usage patterns are documented in [docs/CI_INTEGRATION.md](./docs/CI_INTEGRATION.md).
+
 ## Why Confidantic
 
 Confidantic focuses on fast iteration for generating CUE schema/files from Tree-sitter artifacts:
 
-- `node-types.json` from Tree-sitter generation/build
-- query `.scm` files (highlights/tags and related semantics)
-- deterministic CUE synthesis
-- required `cue fmt` + `cue vet`
-- structured JSONL provenance logs
+- `node-types.json` from Tree-sitter generation/build,
+- query `.scm` files (`highlights.scm`, `tags.scm`, and related semantics),
+- deterministic CUE synthesis,
+- required `cue fmt` + `cue vet`,
+- structured JSONL provenance logs.
 
-## Core workshop loop
+## Core workshop loop (Just-first)
 
 ```bash
-# 1) update grammar and query files
-# 2) generate/update tree-sitter artifacts
-just cue:from-ts:generate <grammar>
+# Validate workshop inputs
+just --justfile scripts/confidantic.just cue:from-ts:doctor <grammar>
 
-# 3) normalize output
-just cue:from-ts:fmt <grammar>
+# Generate deterministic CUE files from Tree-sitter artifacts
+just --justfile scripts/confidantic.just cue:from-ts:generate <grammar>
 
-# 4) validate schema/data/snapshots
-just cue:from-ts:vet <grammar>
+# Format generated CUE files
+just --justfile scripts/confidantic.just cue:from-ts:fmt <grammar>
 
-# 5) run doctor checks + iterate
-just cue:from-ts:doctor <grammar>
+# Validate generated outputs
+just --justfile scripts/confidantic.just cue:from-ts:vet <grammar>
 ```
 
 One-shot loop:
 
 ```bash
-just cue:from-ts:workshop <grammar>
+just --justfile scripts/confidantic.just cue:from-ts:workshop <grammar>
+```
+
+## Workshop command examples (CLI)
+
+```bash
+# Generate workshop schemas from Tree-sitter inputs
+confidantic workshop generate \
+  --grammar python \
+  --node-types build/treesitter/python/node-types.json \
+  --queries-dir build/treesitter/python/queries \
+  --output-dir build/schemas/cue/python
+
+# Validate generated workshop outputs
+confidantic workshop validate \
+  --grammar python \
+  --output-dir build/schemas/cue/python
+
+# Diagnose input/output health
+confidantic workshop doctor \
+  --grammar python \
+  --node-types build/treesitter/python/node-types.json \
+  --queries-dir build/treesitter/python/queries
 ```
 
 ## Required architecture contracts
@@ -87,18 +116,48 @@ logs/
   workshop.jsonl
 ```
 
-## CLI (plumbing)
+## Command reference
 
-Required commands:
+### `config` commands
+
+- `confidantic config validate`
+- `confidantic config dump --format json`
+- `confidantic config env [--export]`
+- `confidantic config fingerprint`
+
+### `schema` commands
+
+- `confidantic schema export --grammar <grammar> --node-types <path> --queries-dir <dir> --output-dir <dir>`
+- `confidantic schema vet --output-dir <dir> [--grammar <grammar>]`
+
+### `workshop` commands
+
+- `confidantic workshop generate --grammar <grammar> --node-types <path> --queries-dir <dir> --output-dir <dir>`
+- `confidantic workshop doctor --grammar <grammar> --node-types <path> --queries-dir <dir> [--schemas-dir <dir>]`
+- `confidantic workshop validate --output-dir <dir> [--grammar <grammar>]`
+
+### `logs` commands
+
+- `confidantic logs show [--limit N] [--grammar <grammar>] [--stage <stage>] [--status <status>] [--format text|json|jsonl]`
+- `confidantic logs stats [--format text|json|jsonl]`
+- `confidantic logs query [filters...] [--format text|json|jsonl]`
+
+### `migrate` commands
+
+- `confidantic migrate check [--path confidantic.toml] [--format json|text]`
+- `confidantic migrate apply [--path confidantic.toml] [--backup/--no-backup] [--format json|text]`
+- `confidantic migrate doctor [--root .] [--format json|text]`
+
+### Legacy compatibility root commands
 
 - `confidantic validate`
 - `confidantic dump --format json`
-- `confidantic env`
+- `confidantic env [--export]`
 - `confidantic fingerprint`
 
 ## Required recipe contracts
 
-Confidantic must continue to provide:
+Confidantic continues to provide:
 
 - `schema:export`
 - `schema:vet`
@@ -144,50 +203,5 @@ Confidantic should validate:
 - [AGENTS.md](./AGENTS.md) — implementation guidance and non-negotiable contracts
 - [ROADMAP.md](./ROADMAP.md) — phased implementation roadmap
 - [docs/WORKSHOP_LOGS.md](./docs/WORKSHOP_LOGS.md) — workshop provenance JSONL contract
-
-## Phase 2: Deterministic CUE Generation
-
-Confidantic now includes a deterministic generation engine that converts Phase 1 `WorkshopInput`
-artifacts into three CUE files under `build/schemas/cue/<grammar>/`:
-
-- `node_types.cue` — normalized node-type definitions
-- `captures.cue` — query captures grouped by query type
-- `metadata.cue` — fingerprinted source/provenance metadata
-
-### Public API
-
-```python
-from pathlib import Path
-from confidantic.workshop.loaders import load_workshop_input
-from confidantic.workshop.generator import CueGenerator
-
-workshop_input = load_workshop_input(
-    grammar_name="python",
-    node_types_path=Path("build/treesitter/python/node-types.json"),
-    queries_dir=Path("build/treesitter/python/queries"),
-)
-
-generator = CueGenerator(workshop_input)
-files = generator.generate(Path("build/schemas/cue/python"))
-```
-
-Generation guarantees:
-
-- Stable file set and ordering (`captures`, `metadata`, `node_types`)
-- Sorted definitions and deterministic traversal
-- Provenance comments in generated files
-- Atomic file writes (temp file + rename)
-- Build-only output enforcement
-
-### CUE formatting and validation helpers
-
-```python
-from pathlib import Path
-from confidantic.cue.formatter import format_cue_directory, validate_cue_file
-
-results = format_cue_directory(Path("build/schemas/cue/python"))
-ok, err = validate_cue_file(Path("build/schemas/cue/python/node_types.cue"))
-```
-
-These wrappers invoke `cue fmt` and `cue vet` directly and return clear per-file results.
-
+- [docs/MIGRATION.md](./docs/MIGRATION.md) — legacy-to-workshop migration guidance
+- [docs/CI_INTEGRATION.md](./docs/CI_INTEGRATION.md) — CI templates and command ordering
