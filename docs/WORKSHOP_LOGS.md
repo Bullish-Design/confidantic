@@ -23,6 +23,13 @@ Each line is a standalone JSON object:
 - Events are written with file locking to prevent concurrent-write corruption
 - Invalid lines are skipped by readers with warnings
 
+## CLI commands
+
+- `confidantic logs show` supports `--grammar`, `--stage`, `--status`, `--failures-only`, and `--limit`.
+- `confidantic logs stats` emits aggregate counts and stage duration summaries.
+- `confidantic logs query` supports explicit predicates with `--grammar`, `--stage`, `--status`, `--since`, `--until`, and `--window`.
+- All logs commands support deterministic machine output via `--format json`/`--format jsonl` or `--json`.
+
 ## jq examples
 
 ```bash
