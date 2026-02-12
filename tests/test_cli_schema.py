@@ -62,6 +62,56 @@ def test_schema_vet_command_emits_machine_parseable_failure(monkeypatch, tmp_pat
 
     assert result.exit_code == 1
     payload = json.loads(result.stderr)
+    assert payload["ok"] is False
+    assert payload["status"] == "error"
+    assert payload["message"] == "schema vet failed"
+    assert payload["command"] == "schema vet"
+    assert payload["grammar"] == "python"
+    assert payload["output_dir"] == str(tmp_path / "schemas")
+    assert payload["errors"] == ["vet failed"]
+
+
+def test_schema_vet_command_emits_machine_parseable_success(monkeypatch, tmp_path: Path) -> None:
+    def fake_validate_workshop_output(*, output_dir: Path, grammar: str | None = None):
+        assert grammar == "python"
+        assert output_dir == tmp_path / "schemas"
+        return WorkshopValidateResult(ok=True, errors=())
+
+    monkeypatch.setattr("confidantic.cli.schema.validate_workshop_output", fake_validate_workshop_output)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["schema", "vet", "--grammar", "python", "--output-dir", str(tmp_path / "schemas")],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["status"] == "ok"
+    assert payload["command"] == "schema vet"
+    assert payload["grammar"] == "python"
+    assert payload["output_dir"] == str(tmp_path / "schemas")
+
+
+def test_schema_vet_command_exception_emits_machine_parseable_failure(monkeypatch, tmp_path: Path) -> None:
+    def fake_validate_workshop_output(*, output_dir: Path, grammar: str | None = None):
+        raise RuntimeError("cue vet crashed")
+
+    monkeypatch.setattr("confidantic.cli.schema.validate_workshop_output", fake_validate_workshop_output)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["schema", "vet", "--grammar", "python", "--output-dir", str(tmp_path / "schemas")],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stderr)
+    assert payload["ok"] is False
     assert payload["status"] == "error"
     assert payload["command"] == "schema vet"
-    assert payload["errors"] == ["vet failed"]
+    assert payload["message"] == "schema vet failed: cue vet crashed"
+    assert payload["errors"] == ["cue vet crashed"]
+    assert payload["grammar"] == "python"
+    assert payload["output_dir"] == str(tmp_path / "schemas")
