@@ -42,27 +42,33 @@ def root_callback(
 
 
 @app.command("validate")
-def validate() -> None:
+def validate(ctx: typer.Context) -> None:
     """Legacy wrapper for `config validate`."""
-    config_validate()
+    config_validate(ctx)
 
 
 @app.command("dump")
-def dump(format: str = typer.Option("json", "--format", help="Output format.")) -> None:
+def dump(
+    ctx: typer.Context,
+    format: str = typer.Option("json", "--format", help="Output format."),
+) -> None:
     """Legacy wrapper for `config dump`."""
-    config_dump(format=format)
+    config_dump(ctx, format=format)
 
 
 @app.command("env")
-def env(export: bool = typer.Option(False, "--export", help="Emit shell export syntax.")) -> None:
+def env(
+    ctx: typer.Context,
+    export: bool = typer.Option(False, "--export", help="Emit shell export syntax."),
+) -> None:
     """Legacy wrapper for `config env`."""
-    config_env(export=export)
+    config_env(ctx, export=export)
 
 
 @app.command("fingerprint")
-def fingerprint() -> None:
+def fingerprint(ctx: typer.Context) -> None:
     """Legacy wrapper for `config fingerprint`."""
-    config_fingerprint()
+    config_fingerprint(ctx)
 
 
 def main() -> None:

@@ -25,6 +25,7 @@ class DiagnosticFormat(str, Enum):
 
 @app.command("generate")
 def generate(
+    ctx: typer.Context,
     grammar: str = typer.Option(..., "--grammar", help="Grammar name."),
     node_types: Path = typer.Option(..., "--node-types", help="Path to node-types.json."),
     queries_dir: Path = typer.Option(..., "--queries-dir", help="Path to query .scm directory."),
@@ -39,15 +40,17 @@ def generate(
             output_dir=output_dir,
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(message=f"workshop generate failed: {exc}", payload={"command": "workshop generate", "status": "error"})
+        fail(ctx, message=f"workshop generate failed: {exc}", payload={"command": "workshop generate", "status": "error"})
 
     if not result.generated_files:
         fail(
+            ctx,
             message="workshop generate failed: no files were generated",
             payload={"command": "workshop generate", "status": "error"},
         )
 
     emit(
+        ctx,
         payload={
             "command": "workshop generate",
             "grammar": grammar,
@@ -63,6 +66,7 @@ def generate(
 
 @app.command("doctor")
 def doctor(
+    ctx: typer.Context,
     grammar: str = typer.Option(..., "--grammar", help="Grammar name."),
     node_types: Path = typer.Option(..., "--node-types", help="Path to node-types.json."),
     queries_dir: Path = typer.Option(..., "--queries-dir", help="Path to query .scm directory."),
@@ -81,23 +85,26 @@ def doctor(
             schemas_dir=schemas_dir,
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(message=f"workshop doctor failed: {exc}", payload={"command": "workshop doctor", "status": "error"})
+        fail(ctx, message=f"workshop doctor failed: {exc}", payload={"command": "workshop doctor", "status": "error"})
 
     report = result.report
     if format == DiagnosticFormat.TERMINAL:
         emit(
+            ctx,
             payload={"command": "workshop doctor", "status": "ok", "healthy": report.is_healthy()},
             text=format_diagnostic_report(report),
             quiet_text="ok" if report.is_healthy() else "unhealthy",
         )
     elif output is None:
         fail(
+            ctx,
             message="workshop doctor: --output is required for non-terminal formats",
             payload={"command": "workshop doctor", "status": "error"},
         )
     else:
         export_diagnostic_report(report, output_path=output, format=format)
         emit(
+            ctx,
             payload={
                 "command": "workshop doctor",
                 "status": "ok",
@@ -114,6 +121,7 @@ def doctor(
 
 @app.command("validate")
 def validate(
+    ctx: typer.Context,
     output_dir: Path = typer.Option(..., "--output-dir", help="Output directory containing generated CUE files."),
     grammar: str | None = typer.Option(None, "--grammar", help="Grammar name for provenance logs."),
 ) -> None:
@@ -121,10 +129,11 @@ def validate(
     try:
         result = validate_workshop_output(output_dir=output_dir, grammar=grammar)
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(message=f"workshop validate failed: {exc}", payload={"command": "workshop validate", "status": "error"})
+        fail(ctx, message=f"workshop validate failed: {exc}", payload={"command": "workshop validate", "status": "error"})
 
     if not result.ok:
         fail(
+            ctx,
             message="workshop validate failed",
             payload={
                 "command": "workshop validate",
@@ -136,6 +145,7 @@ def validate(
         )
 
     emit(
+        ctx,
         payload={"command": "workshop validate", "grammar": grammar, "output_dir": str(output_dir), "status": "ok"},
         text="workshop validate: OK",
         quiet_text="ok",

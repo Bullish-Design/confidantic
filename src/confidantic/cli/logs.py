@@ -50,14 +50,14 @@ def _serialize_events(events: list[WorkshopEvent]) -> list[dict[str, object]]:
     return [event.model_dump(mode="json") for event in events]
 
 
-def _emit_events(events: list[WorkshopEvent], *, format: OutputFormat) -> None:
+def _emit_events(ctx: typer.Context, events: list[WorkshopEvent], *, format: OutputFormat) -> None:
     if format == OutputFormat.JSONL:
         lines = [event.to_jsonl() for event in events]
-        emit(payload={"count": len(events), "events": _serialize_events(events)}, text="\n".join(lines), quiet_text=str(len(events)))
+        emit(ctx, payload={"count": len(events), "events": _serialize_events(events)}, text="\n".join(lines), quiet_text=str(len(events)))
         return
 
     if format == OutputFormat.JSON:
-        emit(payload={"count": len(events), "events": _serialize_events(events)}, text=f"{len(events)} event(s)", quiet_text=str(len(events)))
+        emit(ctx, payload={"count": len(events), "events": _serialize_events(events)}, text=f"{len(events)} event(s)", quiet_text=str(len(events)))
         return
 
     lines = []
@@ -71,6 +71,7 @@ def _emit_events(events: list[WorkshopEvent], *, format: OutputFormat) -> None:
         )
 
     emit(
+        ctx,
         payload={"count": len(events), "events": _serialize_events(events)},
         text="\n".join(lines),
         quiet_text=str(len(events)),
@@ -79,6 +80,7 @@ def _emit_events(events: list[WorkshopEvent], *, format: OutputFormat) -> None:
 
 @app.command("show")
 def show(
+    ctx: typer.Context,
     limit: int = typer.Option(20, "--limit", min=1, help="Max events to show."),
     grammar: str | None = typer.Option(None, "--grammar", help="Filter by grammar."),
     stage: str | None = typer.Option(None, "--stage", help="Filter by stage."),
@@ -90,11 +92,12 @@ def show(
     selected_status = "failure" if failures_only else status
     reader = WorkshopLogReader()
     events = reader.query_events(grammar=grammar, stage=stage, status=selected_status, limit=limit)
-    _emit_events(events, format=format)
+    _emit_events(ctx, events, format=format)
 
 
 @app.command("stats")
 def stats(
+    ctx: typer.Context,
     format: OutputFormat = typer.Option(OutputFormat.TEXT, "--format", help="Output format."),
 ) -> None:
     """Show aggregate workshop log statistics."""
@@ -102,7 +105,7 @@ def stats(
     payload = reader.calculate_stats()
 
     if format in {OutputFormat.JSON, OutputFormat.JSONL}:
-        emit(payload=payload, text="stats", quiet_text="ok")
+        emit(ctx, payload=payload, text="stats", quiet_text="ok")
         return
 
     lines = [f"total_events: {payload['total_events']}", f"failures: {payload['failures']}"]
@@ -115,11 +118,12 @@ def stats(
             avg_segment = f" avg_ms={avg}" if avg is not None else ""
             lines.append(f"  - {stage_name}: {by_stage[stage_name]}{avg_segment}")
 
-    emit(payload=payload, text="\n".join(lines), quiet_text=str(payload["total_events"]))
+    emit(ctx, payload=payload, text="\n".join(lines), quiet_text=str(payload["total_events"]))
 
 
 @app.command("query")
 def query(
+    ctx: typer.Context,
     grammar: str | None = typer.Option(None, "--grammar", help="Filter by grammar."),
     stage: str | None = typer.Option(None, "--stage", help="Filter by stage."),
     status: str | None = typer.Option(None, "--status", help="Filter by status."),
@@ -152,4 +156,4 @@ def query(
         until=until_dt,
         limit=limit,
     )
-    _emit_events(events, format=format)
+    _emit_events(ctx, events, format=format)
