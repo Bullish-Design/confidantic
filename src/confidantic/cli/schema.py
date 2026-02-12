@@ -52,24 +52,27 @@ def export(
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
         fail(ctx, message=f"schema export failed: {exc}", payload={"command": "schema export", "status": "error"})
+        raise typer.Exit(code=1)
 
-    if not result.generated_files:
+    generated_files = list(getattr(result, "generated_files", []) or [])
+    if not generated_files:
         fail(
             ctx,
             message="schema export failed: no files were generated",
             payload={"command": "schema export", "status": "error"},
         )
+        raise typer.Exit(code=1)
 
     emit(
         ctx,
         payload={
             "command": "schema export",
-            "generated_files": [str(path) for path in result.generated_files],
+            "generated_files": [str(path) for path in generated_files],
             "grammar": grammar,
             "output_dir": str(output_dir),
             "status": "ok",
         },
-        text=f"Generated {len(result.generated_files)} schema file(s).",
+        text=f"Generated {len(generated_files)} schema file(s).",
         quiet_text="ok",
     )
     raise typer.Exit(code=0)
@@ -93,17 +96,13 @@ def vet(
         )
 
     if not result.ok:
+        errors = [str(err) for err in (getattr(result, "errors", []) or [])]
         _emit_schema_vet_failure(
             output_dir=output_dir,
             grammar=grammar,
-        fail(ctx, message=f"schema vet failed: {exc}", payload={"command": "schema vet", "status": "error"})
-
-#     if not result.ok:
-#         fail(
-#             ctx,
-#             message="schema vet failed",
-#             errors=list(result.errors),
-#         )
+            message="schema vet failed",
+            errors=errors,
+        )
 
     emit(
         ctx,

@@ -5,6 +5,7 @@ __pycache__/
 .devenv
 .devenv*
 .tmuxp.yaml
+logs/**
 
 # C extensions
 *.so
