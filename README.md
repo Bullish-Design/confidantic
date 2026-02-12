@@ -96,7 +96,7 @@ Required commands:
 - `confidantic env`
 - `confidantic fingerprint`
 
-## Required recipe compatibility
+## Required recipe contracts
 
 Confidantic must continue to provide:
 
@@ -108,7 +108,7 @@ Confidantic must continue to provide:
 - `config:env`
 - `config:fingerprint`
 
-These are implemented as backward-compatible adapters over the Phase 3 workshop recipes and CLI plumbing:
+These are implemented as stable required recipe surfaces over the workshop recipes and CLI plumbing:
 
 - `schema:export [grammar]` → runs `cue:from-ts:generate` then `cue:from-ts:fmt`
 - `schema:vet [grammar]` → runs `cue:from-ts:vet`

@@ -848,4 +848,4 @@ Phase 4 is complete when:
 7. All tests pass (coverage ≥ 90%)
 8. All items in verification checklist checked off
 
-**Next Phase**: Phase 5 - CLI plumbing and migration compatibility
+**Next Phase**: Phase 5 - CLI plumbing and CI integration

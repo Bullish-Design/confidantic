@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 3 integrates the CUE generation engine (Phase 2) with the Just-first workflow architecture. This phase establishes the primary developer interface through Just recipes and ensures compatibility with existing required targets.
+Phase 3 integrates the CUE generation engine (Phase 2) with the Just-first workflow architecture. This phase establishes the primary developer interface through Just recipes and ensures required recipe targets remain available.
 
 **Goal**: Provide a seamless, Just-first workflow for Tree-sitter-to-CUE generation with mandatory `cue fmt` and `cue vet` integration.
 
@@ -17,12 +17,12 @@ Phase 3 integrates the CUE generation engine (Phase 2) with the Just-first workf
 ## Success Criteria
 
 - [ ] All new Just recipes work correctly
-- [ ] All required compatibility recipes remain functional
+- [ ] All required recipes remain functional
 - [ ] `cue fmt` and `cue vet` are enforced (no bypass paths)
 - [ ] Workshop one-shot recipe (`cue:from-ts:workshop`) works end-to-end
 - [ ] Integration tests cover all recipe paths
 - [ ] Documentation updated with recipe usage examples
-- [ ] Backward compatibility maintained
+- [ ] Required command contracts maintained
 
 ## Task Breakdown
 
@@ -173,7 +173,7 @@ Ensure these recipes continue to work (may need updates):
 **Requirements**:
 - Verify each recipe still works
 - Update paths if needed (use new variables)
-- Maintain backward compatibility
+- Maintain required command contracts
 - Add tests for each recipe
 
 **Testing Requirements**:
@@ -410,7 +410,7 @@ Create `tests/integration/workshop/test_workflow_integration.py`:
 
 #### C2. Test Required Compatibility Recipes
 
-Create `tests/integration/test_compatibility_recipes.py`:
+Create `tests/integration/test_required_recipes.py`:
 
 **Deliverables**:
 
@@ -441,7 +441,7 @@ Create `tests/integration/test_compatibility_recipes.py`:
 - Test all 7 required recipes
 - Verify outputs match expected format
 - Test with various configurations
-- Ensure backward compatibility
+- Ensure required command contracts
 
 ---
 
@@ -514,7 +514,7 @@ Before marking Phase 3 complete, verify:
 
 ### Just Recipes
 - [ ] All new workshop recipes work correctly
-- [ ] All required compatibility recipes still work
+- [ ] All required recipes still work
 - [ ] Recipes handle errors gracefully
 - [ ] Recipe documentation is complete
 - [ ] Recipes use correct paths (via variables)
@@ -534,7 +534,7 @@ Before marking Phase 3 complete, verify:
 
 ### Testing
 - [ ] All integration tests pass
-- [ ] All compatibility tests pass
+- [ ] All command contract tests pass
 - [ ] End-to-end workflow test passes
 - [ ] Error path tests pass
 - [ ] Code coverage ≥ 85% for new code
@@ -555,7 +555,7 @@ Before marking Phase 3 complete, verify:
 
 ## Common Pitfalls to Avoid
 
-1. **Breaking required recipes**: Always test compatibility recipes
+1. **Breaking required recipes**: Always test required recipe contracts
 2. **Hardcoded paths**: Use Just variables for all paths
 3. **Silent failures**: Recipes must exit non-zero on failure
 4. **Missing error messages**: All errors must be clear and actionable
@@ -662,10 +662,10 @@ just schema:vet
 Phase 3 is complete when:
 
 1. All new workshop Just recipes work correctly
-2. All required compatibility recipes remain functional
+2. All required recipes remain functional
 3. CLI workshop commands work correctly
 4. CUE formatting and validation are enforced
-5. Integration tests pass (workshop + compatibility)
+5. Integration tests pass (workshop workflows)
 6. End-to-end workflow test passes
 7. Documentation is complete
 8. All items in verification checklist are checked off
