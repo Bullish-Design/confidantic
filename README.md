@@ -155,7 +155,7 @@ logs/
 - `confidantic env [--export]`
 - `confidantic fingerprint`
 
-## Required recipe compatibility
+## Required recipe contracts
 
 Confidantic continues to provide:
 
@@ -167,7 +167,35 @@ Confidantic continues to provide:
 - `config:env`
 - `config:fingerprint`
 
-These are implemented as backward-compatible adapters over workshop recipes and grouped CLI plumbing.
+These are implemented as stable required recipe surfaces over the workshop recipes and CLI plumbing:
+
+- `schema:export [grammar]` → runs `cue:from-ts:generate` then `cue:from-ts:fmt`
+- `schema:vet [grammar]` → runs `cue:from-ts:vet`
+- `data:vet [grammar] [data_path]` → runs `confidantic-cue vet <data_path> <schema_dir>`
+- `config:*` recipes delegate directly to `confidantic` CLI plumbing commands
+
+Adapter defaults:
+
+- `grammar` defaults to `CONFIDANTIC_GRAMMAR` or `default`
+- `data_path` defaults to `CONFIDANTIC_DATA_PATH` or `${CONFIDANTIC_ROOT}/data`
+
+## Recommended workshop recipes
+
+- `cue:from-ts:generate <grammar>`
+- `cue:from-ts:fmt <grammar>`
+- `cue:from-ts:vet <grammar>`
+- `cue:from-ts:test <grammar>`
+- `cue:from-ts:doctor <grammar>`
+- `cue:from-ts:workshop <grammar>`
+
+## Validation expectations
+
+Confidantic should validate:
+
+- generated CUE schema structure
+- snapshot inputs intended for `cue vet`
+- dataset records against generated schemas
+- workshop input quality (missing/invalid query artifacts, malformed node-types)
 
 ## Additional documentation
 

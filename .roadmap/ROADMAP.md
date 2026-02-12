@@ -53,7 +53,7 @@ Deliverables:
   - `cue:from-ts:test`
   - `cue:from-ts:doctor`
   - `cue:from-ts:workshop`
-- Preserve required compatibility targets:
+- Preserve required contract targets:
   - `schema:export`, `schema:vet`, `data:vet`
   - `config:validate`, `config:dump`, `config:env`, `config:fingerprint`
 
@@ -80,17 +80,17 @@ Deliverables:
 - `src/confidantic/workshop/logging.py`
 - `logs/workshop.jsonl` contract docs and tests
 
-## Phase 5 — CLI plumbing and migration compatibility
+## Phase 5 — CLI plumbing and CI integration
 
 - Keep CLI plumbing-only.
 - Add optional workshop plumbing subcommands if needed for CI scripting.
-- Ensure old command expectations continue to function through adapters.
-- Document migration from old Pydantic-export framing to workshop framing.
+- Keep CLI commands clear, scriptable, and stable for workshop workflows.
+- Document workshop-first usage for teams and CI.
 
 Deliverables:
 - CLI integration updates in `src/confidantic/cli.py`
-- migration notes in docs
-- command compatibility tests
+- CLI usage notes in docs
+- command contract tests
 
 ## Phase 6 — Hardening and quality gates
 
@@ -115,4 +115,4 @@ Roadmap is complete when:
 2. Required CUE workflows (`cue fmt`, `cue vet`) are first-class and enforced.
 3. Required recipe/CLI contracts remain available.
 4. Workshop diagnostics and JSONL provenance are stable and useful.
-5. Documentation, migration notes, and tests fully reflect the new scope.
+5. Documentation and tests fully reflect the workshop-first scope.
