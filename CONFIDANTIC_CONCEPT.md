@@ -1,31 +1,37 @@
 # Confidantic Concept
 
-Confidantic is a deterministic configuration system for Devman-managed projects: a Pydantic wrapper around the CUE CLI. It combines:
+Confidantic is a deterministic **Tree-sitter-to-CUE workshop** for Devman-managed projects. It combines:
 
 1. an importable **devenv module**,
-2. a **Python library** built on Pydantic, and
+2. a **Python library** for deterministic artifact processing and generation,
 3. a **required CUE workflow** for schema formatting and validation.
 
 ---
 
-## 1) Canonical workflow
+## 1) Canonical workshop workflow
 
-A developer should be able to:
+A developer or agent should be able to:
 
-1. Define configuration/data models in Pydantic.
-2. Export model schemas to CUE.
-3. Format schemas with `cue fmt`.
-4. Validate data and snapshots with `cue vet`.
+1. Generate/update Tree-sitter outputs (`node-types.json`) and maintain query `.scm` files.
+2. Convert these inputs into deterministic CUE schema/files.
+3. Format generated CUE with `cue fmt`.
+4. Validate schemas, data, and snapshots with `cue vet`.
+5. Iterate quickly with diagnostics and JSONL provenance logs.
 
-Confidantic provides the commands and recipes that make this flow standard and repeatable.
+Confidantic provides commands and recipes that make this loop standard and repeatable.
 
 ---
 
 ## 2) Design principles
 
-### 2.1 Pydantic is runtime source-of-truth
+### 2.1 Tree-sitter artifacts are source inputs for schema generation
 
-Pydantic models define runtime shape, defaults, and validation behavior consumed by the Python wrapper.
+Confidantic consumes:
+
+- `node-types.json` from Tree-sitter builds
+- query files such as `highlights.scm`, `tags.scm`, and related `.scm` inputs
+
+These inputs drive generated CUE outputs through deterministic transforms.
 
 ### 2.2 CUE is required for schema workflows
 
@@ -42,7 +48,7 @@ The CLI is intentionally minimal. Most developer and CI interaction should happe
 
 ### 2.4 Determinism first
 
-Resolution order, merge behavior, and serialized snapshots must be stable and reviewable.
+Input discovery order, transform order, merge behavior, generated CUE content ordering, and serialized snapshots must be stable and reviewable.
 
 ### 2.5 Safety first
 
@@ -69,13 +75,12 @@ The module must ensure the root exists on shell entry.
 
 The module must **not** set `CONFIDANTIC_PROFILE`.
 
-Profile selection is optional for MVP.
-
-Minimal profile precedence (MVP):
+Profile precedence:
 
 1. explicit API argument
 2. externally-provided `CONFIDANTIC_PROFILE`
-3. `default`
+3. `confidantic.toml` `profile_default`
+4. `default`
 
 ### 3.3 Typical layout
 
@@ -86,30 +91,39 @@ Minimal profile precedence (MVP):
     default.toml
     ci.toml
     local.toml
-  modules/  # optional module config fragments
-    app.toml
-    infra.toml
   data/
-    users.jsonl
-    endpoints.jsonl
+    *.jsonl
+
+build/
+  treesitter/
+    <grammar>/
+      node-types.json
+      queries/
+        highlights.scm
+        tags.scm
+  schemas/
+    cue/
+      <grammar>/
+        *.cue
+
+logs/
+  workshop.jsonl
 ```
-
-### 3.4 Post-MVP profile expansion
-
-Advanced profile capabilities (such as profile registries, richer indexing, or additional discovery conventions) are future expansion and are not required for MVP behavior.
 
 ---
 
-## 4) Minimal runtime flow
+## 4) Minimal workshop pipeline
 
-Confidantic follows a minimal and explicit pipeline:
+Confidantic follows an explicit pipeline:
 
-1. Pydantic model(s) define runtime structure.
-2. Export schema to CUE.
-3. Format schema output with `cue fmt`.
-4. Validate data and resolved snapshots with `cue vet`.
+1. Load Tree-sitter artifacts (`node-types.json`, `.scm` queries).
+2. Normalize and validate workshop inputs.
+3. Synthesize deterministic CUE schema/files.
+4. Format output via `cue fmt`.
+5. Validate output/data/snapshots via `cue vet`.
+6. Emit structured run logs.
 
-Determinism is provided by the Python wrapper's stable loading, merging, and serialization behavior, with CUE enforcing consistent schema constraints at validation time.
+---
 
 ## 5) Merge semantics
 
@@ -125,7 +139,7 @@ Per-field list policies may override default behavior:
 - `unique`
 - `keyed:<field>`
 
-Policies are configured via field metadata and applied deterministically by the Python wrapper before CUE validation.
+Policies are configured via field metadata and applied deterministically by the Python wrapper.
 
 ---
 
@@ -155,39 +169,7 @@ Confidantic must support redaction across nested structures, including secret ty
 - `confidantic env`
 - `confidantic fingerprint`
 
-### 8.2 MVP quickstart commands
-
-In an MVP checkout of this repository:
-
-- The root `justfile` (`./justfile`) currently exposes `just test` only.
-- Confidantic workflow recipes are not expected to exist in the root `justfile`.
-- Recipe targets below are provided by `scripts/confidantic.just` when the module is integrated (typically surfaced via `CONFIDANTIC_JUSTFILE`).
-
-Prefer CUE-wrapped flows for schema/config tasks:
-
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:export`
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt`
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:vet`
-- `just -f "$CONFIDANTIC_JUSTFILE" config:validate`
-- `just -f "$CONFIDANTIC_JUSTFILE" config:dump`
-
-Plumbing CLI remains valid:
-
-- `confidantic validate`
-- `confidantic dump --format json`
-
-| Goal | Command | Where defined |
-| --- | --- | --- |
-| Run repository checks in MVP checkout | `just test` | Root `./justfile` |
-| Export CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:export` | `scripts/confidantic.just` (when integrated) |
-| Format CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt` | `scripts/confidantic.just` (when integrated) |
-| Vet schema/data via CUE (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:vet` | `scripts/confidantic.just` (when integrated) |
-| Validate resolved config | `confidantic validate` | `confidantic` CLI |
-| Dump resolved config JSON | `confidantic dump --format json` | `confidantic` CLI |
-
-### 8.3 Just recipes
-
-Required recipe names (provided by `scripts/confidantic.just` when module is integrated):
+### 8.2 Required just recipes
 
 - `schema:export`
 - `schema:vet`
@@ -197,6 +179,17 @@ Required recipe names (provided by `scripts/confidantic.just` when module is int
 - `config:env`
 - `config:fingerprint`
 
+These should be implemented in workshop-first form (Tree-sitter input -> CUE generation/validation) while preserving stable names.
+
+### 8.3 Workshop-oriented recipes (recommended)
+
+- `cue:from-ts:generate <grammar>`
+- `cue:from-ts:fmt <grammar>`
+- `cue:from-ts:vet <grammar>`
+- `cue:from-ts:test <grammar>`
+- `cue:from-ts:doctor <grammar>`
+- `cue:from-ts:workshop <grammar>`
+
 ### 8.4 Wrapper
 
 `confidantic-cue` is the stable interface around `cue` (and `jq` shaping where needed).
@@ -205,10 +198,11 @@ Required recipe names (provided by `scripts/confidantic.just` when module is int
 
 ## 9) Export and validation workflow
 
-- Export designated schema models to `./build/schemas/cue/`.
-- Format schemas with `cue fmt`.
-- Validate resolved snapshot JSON with `cue vet`.
-- Validate dataset records with `cue vet` against record schemas.
+- Ingest Tree-sitter node types and query semantics.
+- Generate CUE schema artifacts to `./build/schemas/cue/`.
+- Run `cue fmt` on generated schemas.
+- Validate generated schema and snapshots with `cue vet`.
+- Validate datasets with `cue vet` against generated record schemas.
 
 All generated artifacts are build outputs.
 
@@ -219,8 +213,8 @@ All generated artifacts are build outputs.
 Confidantic is complete when:
 
 1. devenv contract is fully satisfied (`CONFIDANTIC_ROOT`, `CONFIDANTIC_JUSTFILE`, required PATH tooling, profile behavior).
-2. Python wrapper behavior is deterministic and test-covered.
-3. snapshot output is stable and safe by default through redaction-aware wrapper APIs plus CUE validation workflows.
-4. CUE export + vet workflows are operational through wrapper and recipes.
+2. workshop generation from Tree-sitter inputs is deterministic and test-covered.
+3. generated CUE outputs are stable and formatted with `cue fmt`.
+4. schema/data/snapshot vet paths are operational through wrapper and recipes.
 5. CLI remains plumbing-only and delegates business logic to core services.
-6. tests cover profile precedence, merge policies, JSONL warnings/strict behavior, redaction, and schema/data vet paths.
+6. tests cover Tree-sitter input parsing, generation determinism, merge policies, JSONL warnings/strict behavior, redaction, and vet paths.

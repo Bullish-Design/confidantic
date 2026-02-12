@@ -1,20 +1,53 @@
 # Confidantic
 
-Confidantic is a deterministic configuration system for Devman-managed projects: a Pydantic wrapper around the CUE CLI.
+Confidantic is a deterministic **Tree-sitter-to-CUE workshop** for Devman-managed projects.
 
 It provides:
 
-- a devenv module contract for configuration environment setup,
-- a Pydantic-based Python library for config/data resolution,
-- a required CUE workflow for schema formatting and validation.
+- a devenv module contract for environment and workflow setup,
+- a Python library for deterministic workshop processing,
+- required CUE workflows for formatting and validation,
+- just-first command surfaces for humans and agents.
 
-## Core principles
+## Why Confidantic
 
-- **Pydantic-first runtime models**
-- **CUE-required schema workflows** (`cue fmt`, `cue vet`)
-- **Just-first developer/CI workflows**
-- **Deterministic wrapper merge and snapshot behavior**
-- **Safe-by-default redaction**
+Confidantic focuses on fast iteration for generating CUE schema/files from Tree-sitter artifacts:
+
+- `node-types.json` from Tree-sitter generation/build
+- query `.scm` files (highlights/tags and related semantics)
+- deterministic CUE synthesis
+- required `cue fmt` + `cue vet`
+- structured JSONL provenance logs
+
+## Core workshop loop
+
+```bash
+# 1) update grammar and query files
+# 2) generate/update tree-sitter artifacts
+just cue:from-ts:generate <grammar>
+
+# 3) normalize output
+just cue:from-ts:fmt <grammar>
+
+# 4) validate schema/data/snapshots
+just cue:from-ts:vet <grammar>
+
+# 5) run doctor checks + iterate
+just cue:from-ts:doctor <grammar>
+```
+
+One-shot loop:
+
+```bash
+just cue:from-ts:workshop <grammar>
+```
+
+## Required architecture contracts
+
+- **CUE-required workflow:** use `cue fmt` and `cue vet`; no alternate validation path.
+- **Deterministic outputs:** stable input discovery, stable generation order, stable serialized snapshots.
+- **Safe-by-default output:** redacted logs/snapshots via `to_redacted_dict()` conventions.
+- **Just-first workflows:** recipes are primary interface; CLI remains thin plumbing.
 
 ## Devenv contract
 
@@ -27,107 +60,45 @@ It must ensure the config root exists on shell entry and must not set `CONFIDANT
 
 Required tooling on PATH:
 
-- `confidantic`
-- `confidantic-cue`
+- `tree-sitter`
 - `cue`
 - `jq`
+- `confidantic`
+- `confidantic-cue`
 
-## Config layout
+## Key inputs and artifacts
+
+Typical workshop artifacts:
 
 ```text
-.devman/.config/
-  confidantic.toml
-  profiles/
-    default.toml
-    ci.toml
-    local.toml
-  modules/  # optional module config fragments
-    app.toml
-    infra.toml
-  data/
-    users.jsonl
-    endpoints.jsonl
+build/
+  treesitter/
+    <grammar>/
+      node-types.json
+      queries/
+        highlights.scm
+        tags.scm
+  schemas/
+    cue/
+      <grammar>/
+        *.cue
+
+logs/
+  workshop.jsonl
 ```
 
-## Minimal runtime flow
-
-1. Pydantic model(s) define runtime structure
-2. export schema to CUE
-3. format with `cue fmt`
-4. validate data/snapshots with `cue vet`
-
-Profile selection is optional in MVP. When no profile is specified, Confidantic uses `default`.
-
-Minimal precedence (MVP):
-
-1. explicit API/CLI argument
-2. external `CONFIDANTIC_PROFILE`
-3. `default`
-
-## Post-MVP profile expansion
-
-Advanced profile behavior (for example, richer profile registries or additional discovery/indexing mechanisms) is intentionally out of scope for MVP and reserved for future expansion.
-
-## Merge semantics
-
-Default behavior:
-
-- dict/object: deep merge
-- scalar: replace
-- list: replace
-
-Per-field list policy overrides:
-
-- `append`
-- `unique`
-- `keyed:<field>`
-
-## JSONL policy
-
-- one record type per file
-- invalid JSON lines produce warnings with file + line number
-- strict mode collects all invalid lines and fails with summary
-
 ## CLI (plumbing)
+
+Required commands:
 
 - `confidantic validate`
 - `confidantic dump --format json`
 - `confidantic env`
 - `confidantic fingerprint`
 
-## MVP quickstart commands
+## Required recipe compatibility
 
-In an MVP checkout of this repository:
-
-- The **root** `justfile` is at `./justfile` and currently exposes `just test` only.
-- The Confidantic workflow recipes are **not** defined in the root `justfile`.
-- Those recipes are provided by `scripts/confidantic.just` **when the Confidantic module is integrated** (typically surfaced via `CONFIDANTIC_JUSTFILE`).
-
-If you are in a devenv shell with Confidantic integrated, prioritize CUE-wrapped flows:
-
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:export`
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt`
-- `just -f "$CONFIDANTIC_JUSTFILE" schema:vet`
-- `just -f "$CONFIDANTIC_JUSTFILE" config:validate`
-- `just -f "$CONFIDANTIC_JUSTFILE" config:dump`
-
-You can always run the plumbing CLI directly (also CUE-oriented via wrapper-backed workflows):
-
-- `confidantic validate`
-- `confidantic dump --format json`
-
-| Goal | Command | Where defined |
-| --- | --- | --- |
-| Run repository checks in MVP checkout | `just test` | Root `./justfile` |
-| Export CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:export` | `scripts/confidantic.just` (when integrated) |
-| Format CUE schema (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:fmt` | `scripts/confidantic.just` (when integrated) |
-| Vet schema/data via CUE (module-integrated) | `just -f "$CONFIDANTIC_JUSTFILE" schema:vet` | `scripts/confidantic.just` (when integrated) |
-| Validate resolved config | `confidantic validate` | `confidantic` CLI |
-| Dump resolved config JSON | `confidantic dump --format json` | `confidantic` CLI |
-
-## Required workflow recipes
-
-Confidantic provides an include-able justfile with (provided by `scripts/confidantic.just` when module is integrated):
+Confidantic must continue to provide:
 
 - `schema:export`
 - `schema:vet`
@@ -137,37 +108,28 @@ Confidantic provides an include-able justfile with (provided by `scripts/confida
 - `config:env`
 - `config:fingerprint`
 
-## CUE workflow
+These are expected to map internally to the workshop implementation as needed.
 
-- export designated schema models to `./build/schemas/cue/`
-- run `cue fmt` on generated schemas
-- validate resolved snapshots produced by the Python wrapper with `cue vet`
-- validate datasets with `cue vet`
+## Recommended workshop recipes
 
-`confidantic-cue` is the stable wrapper used by recipes and CI.
+- `cue:from-ts:generate <grammar>`
+- `cue:from-ts:fmt <grammar>`
+- `cue:from-ts:vet <grammar>`
+- `cue:from-ts:test <grammar>`
+- `cue:from-ts:doctor <grammar>`
+- `cue:from-ts:workshop <grammar>`
 
-## Repository conventions
+## Validation expectations
 
-Recommended structure:
+Confidantic should validate:
 
-```text
-src/confidantic/
-  core/
-  models/
-  cue/
-  cue_export/
-tests/
-  unit/
-  integration/
-build/
-```
+- generated CUE schema structure
+- snapshot inputs intended for `cue vet`
+- dataset records against generated schemas
+- workshop input quality (missing/invalid query artifacts, malformed node-types)
 
-## Quality expectations
+## Additional documentation
 
-Confidantic changes should improve or preserve:
-
-- determinism
-- debuggability
-- safety/redaction behavior
-- module-driven environment contracts
-- required CUE workflow behavior
+- [CONFIDANTIC_CONCEPT.md](./CONFIDANTIC_CONCEPT.md) — canonical concept and architecture scope
+- [AGENTS.md](./AGENTS.md) — implementation guidance and non-negotiable contracts
+- [ROADMAP.md](./ROADMAP.md) — phased implementation roadmap
