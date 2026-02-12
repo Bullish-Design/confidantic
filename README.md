@@ -108,7 +108,17 @@ Confidantic must continue to provide:
 - `config:env`
 - `config:fingerprint`
 
-These are expected to map internally to the workshop implementation as needed.
+These are implemented as backward-compatible adapters over the Phase 3 workshop recipes and CLI plumbing:
+
+- `schema:export [grammar]` → runs `cue:from-ts:generate` then `cue:from-ts:fmt`
+- `schema:vet [grammar]` → runs `cue:from-ts:vet`
+- `data:vet [grammar] [data_path]` → runs `confidantic-cue vet <data_path> <schema_dir>`
+- `config:*` recipes delegate directly to `confidantic` CLI plumbing commands
+
+Adapter defaults:
+
+- `grammar` defaults to `CONFIDANTIC_GRAMMAR` or `default`
+- `data_path` defaults to `CONFIDANTIC_DATA_PATH` or `${CONFIDANTIC_ROOT}/data`
 
 ## Recommended workshop recipes
 
