@@ -75,6 +75,7 @@ cue:from-ts:doctor grammar:
       exit 1; \
     fi; \
     confidantic workshop doctor \
+      --grammar "{{grammar}}" \
       --node-types "$node_types" \
       --queries-dir "$queries_dir"
 
