@@ -41,7 +41,7 @@ Required tooling on PATH:
     default.toml
     ci.toml
     local.toml
-  modules/
+  modules/  # optional module config fragments
     app.toml
     infra.toml
   data/
@@ -56,12 +56,17 @@ Required tooling on PATH:
 3. format with `cue fmt`
 4. validate data/snapshots with `cue vet`
 
-Profile precedence:
+Profile selection is optional in MVP. When no profile is specified, Confidantic uses `default`.
 
-1. explicit API argument
+Minimal precedence (MVP):
+
+1. explicit API/CLI argument
 2. external `CONFIDANTIC_PROFILE`
-3. `profile_default` in `confidantic.toml`
-4. `default`
+3. `default`
+
+## Post-MVP profile expansion
+
+Advanced profile behavior (for example, richer profile registries or additional discovery/indexing mechanisms) is intentionally out of scope for MVP and reserved for future expansion.
 
 ## Merge semantics
 

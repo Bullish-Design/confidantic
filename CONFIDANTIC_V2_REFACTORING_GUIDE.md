@@ -218,6 +218,20 @@ Do not set `CONFIDANTIC_PROFILE`.
 
 ---
 
+## 11.1) MVP profile handling
+
+Profile selection is optional/minimal for MVP:
+
+1. explicit API/CLI argument
+2. externally-set `CONFIDANTIC_PROFILE`
+3. `default`
+
+Avoid making `confidantic.toml` `profile_default` mandatory in the MVP path.
+
+## 11.2) Post-MVP profile expansion
+
+Advanced profile behavior (for example registry-backed profile catalogs or richer discovery workflows) is reserved for post-MVP iteration.
+
 ## 12) Required Just recipes
 
 `devenv/just/confidantic.just` should include:
