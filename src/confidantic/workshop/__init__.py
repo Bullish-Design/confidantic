@@ -1,5 +1,6 @@
 """Phase 1 public workshop API surface."""
 
+from .generator import CueGenerator
 from .loaders import (
     discover_query_files,
     load_node_types,
@@ -21,6 +22,7 @@ from .models import (
 )
 
 __all__ = [
+    "CueGenerator",
     "NodeType",
     "NodeTypes",
     "QueryCapture",

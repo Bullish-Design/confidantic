@@ -133,3 +133,50 @@ Confidantic should validate:
 - [CONFIDANTIC_CONCEPT.md](./CONFIDANTIC_CONCEPT.md) — canonical concept and architecture scope
 - [AGENTS.md](./AGENTS.md) — implementation guidance and non-negotiable contracts
 - [ROADMAP.md](./ROADMAP.md) — phased implementation roadmap
+
+## Phase 2: Deterministic CUE Generation
+
+Confidantic now includes a deterministic generation engine that converts Phase 1 `WorkshopInput`
+artifacts into three CUE files under `build/schemas/cue/<grammar>/`:
+
+- `node_types.cue` — normalized node-type definitions
+- `captures.cue` — query captures grouped by query type
+- `metadata.cue` — fingerprinted source/provenance metadata
+
+### Public API
+
+```python
+from pathlib import Path
+from confidantic.workshop.loaders import load_workshop_input
+from confidantic.workshop.generator import CueGenerator
+
+workshop_input = load_workshop_input(
+    grammar_name="python",
+    node_types_path=Path("build/treesitter/python/node-types.json"),
+    queries_dir=Path("build/treesitter/python/queries"),
+)
+
+generator = CueGenerator(workshop_input)
+files = generator.generate(Path("build/schemas/cue/python"))
+```
+
+Generation guarantees:
+
+- Stable file set and ordering (`captures`, `metadata`, `node_types`)
+- Sorted definitions and deterministic traversal
+- Provenance comments in generated files
+- Atomic file writes (temp file + rename)
+- Build-only output enforcement
+
+### CUE formatting and validation helpers
+
+```python
+from pathlib import Path
+from confidantic.cue.formatter import format_cue_directory, validate_cue_file
+
+results = format_cue_directory(Path("build/schemas/cue/python"))
+ok, err = validate_cue_file(Path("build/schemas/cue/python/node_types.cue"))
+```
+
+These wrappers invoke `cue fmt` and `cue vet` directly and return clear per-file results.
+
