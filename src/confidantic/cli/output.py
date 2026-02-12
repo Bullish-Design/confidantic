@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import json
 from typing import Any
 
+import click
 from rich.console import Console
 import typer
 
@@ -39,7 +40,7 @@ def set_global_options(
 
 def get_global_options(ctx: typer.Context | None = None) -> GlobalOutputOptions:
     """Load global options from the active Typer context."""
-    context = ctx or typer.get_current_context(silent=True)
+    context = ctx or click.get_current_context(silent=True)
     if context is None or not isinstance(context.obj, dict):
         return GlobalOutputOptions()
 
@@ -52,6 +53,7 @@ def get_global_options(ctx: typer.Context | None = None) -> GlobalOutputOptions:
 
 
 def emit(
+    ctx: typer.Context | None = None,
     *,
     payload: dict[str, Any] | list[Any] | None = None,
     text: str | None = None,
@@ -62,7 +64,7 @@ def emit(
 
     Priority: JSON output -> quiet text -> rich text.
     """
-    options = get_global_options()
+    options = get_global_options(ctx)
 
     if options.json_output:
         data: Any = payload if payload is not None else {"message": text or ""}
@@ -80,7 +82,13 @@ def emit(
     Console(stderr=err, no_color=options.no_color).print(message)
 
 
-def fail(*, message: str, payload: dict[str, Any] | None = None, code: int = 1) -> None:
+def fail(
+    ctx: typer.Context | None = None,
+    *,
+    message: str,
+    payload: dict[str, Any] | None = None,
+    code: int = 1,
+) -> None:
     """Emit failure output with global formatting rules and exit."""
-    emit(payload=payload, text=message, quiet_text=message, err=True)
+    emit(ctx, payload=payload, text=message, quiet_text=message, err=True)
     raise typer.Exit(code=code)

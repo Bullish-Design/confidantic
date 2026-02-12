@@ -36,17 +36,17 @@ class Finding:
 
 DEPRECATED_PATTERNS: tuple[DeprecatedPattern, ...] = (
     DeprecatedPattern(
-        pattern=re.compile(r"^\\s*config_root\\s*="),
+        pattern=re.compile(r"^\s*config_root\s*="),
         replacement="root =",
         message="'config_root' is deprecated; use 'root'.",
     ),
     DeprecatedPattern(
-        pattern=re.compile(r"^\\s*profile\\s*="),
+        pattern=re.compile(r"^\s*profile\s*="),
         replacement="profile_default =",
         message="'profile' is deprecated; use 'profile_default'.",
     ),
     DeprecatedPattern(
-        pattern=re.compile(r"^\\s*data_file\\s*="),
+        pattern=re.compile(r"^\s*data_file\s*="),
         replacement="data_files =",
         message="'data_file' is deprecated; use 'data_files'.",
     ),
@@ -145,6 +145,7 @@ def apply(
     payload = {
         "path": str(path),
         "status": "migrated",
+        "changed_files": [str(path)],
         "replacements": replacements,
         "backup": backup_path,
     }

@@ -99,14 +99,14 @@ cue-from-ts-clean grammar:
 #   - Tree-sitter inputs: build/treesitter/<grammar>/
 #   - CUE outputs: build/schemas/cue/<grammar>/
 
-schema:export grammar=compat_grammar:
+schema:export grammar="{{compat_grammar}}":
     @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
     just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
 
-schema:vet grammar=compat_grammar:
+schema:vet grammar="{{compat_grammar}}":
     @just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
-data:vet grammar=compat_grammar data_path=compat_data_path:
+data:vet grammar="{{compat_grammar}}" data_path="{{compat_data_path}}":
     @schema_dir="{{schemas_dir}}/{{grammar}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
