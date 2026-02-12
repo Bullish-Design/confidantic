@@ -12,6 +12,9 @@ from .config import validate as config_validate
 from .logs import app as logs_app
 from .output import set_global_options
 from .schema import app as schema_app
+from .schema import app as schema_app
+from .logs import app as logs_app
+from .migrate import app as migrate_app
 from .workshop import app as workshop_app
 
 app = typer.Typer(help="Confidantic CLI.", no_args_is_help=True)
@@ -19,6 +22,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(schema_app, name="schema")
 app.add_typer(workshop_app, name="workshop")
 app.add_typer(logs_app, name="logs")
+app.add_typer(migrate_app, name="migrate")
 
 
 @app.callback()

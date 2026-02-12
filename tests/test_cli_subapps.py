@@ -15,6 +15,7 @@ def test_cli_registers_expected_subapps() -> None:
     assert "schema" in result.stdout
     assert "workshop" in result.stdout
     assert "logs" in result.stdout
+    assert "migrate" in result.stdout
 
 
 def test_legacy_top_level_commands_forward_to_config_commands() -> None:
