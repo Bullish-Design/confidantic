@@ -9,6 +9,9 @@ from .config import dump as config_dump
 from .config import env as config_env
 from .config import fingerprint as config_fingerprint
 from .config import validate as config_validate
+from .logs import app as logs_app
+from .output import set_global_options
+from .schema import app as schema_app
 from .schema import app as schema_app
 from .logs import app as logs_app
 from .migrate import app as migrate_app
@@ -20,6 +23,25 @@ app.add_typer(schema_app, name="schema")
 app.add_typer(workshop_app, name="workshop")
 app.add_typer(logs_app, name="logs")
 app.add_typer(migrate_app, name="migrate")
+
+
+@app.callback()
+def root_callback(
+    ctx: typer.Context,
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase log verbosity."),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Emit minimal output."),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
+    no_color: bool = typer.Option(False, "--no-color", help="Disable ANSI color output."),
+) -> None:
+    """Store global output options for all command groups."""
+    set_global_options(
+        ctx,
+        verbose=verbose,
+        quiet=quiet,
+        json_output=json_output,
+        no_color=no_color,
+    )
+
 
 @app.command("validate")
 def validate() -> None:
@@ -43,11 +65,6 @@ def env(export: bool = typer.Option(False, "--export", help="Emit shell export s
 def fingerprint() -> None:
     """Legacy wrapper for `config fingerprint`."""
     config_fingerprint()
-#     """Show deterministic configuration fingerprint placeholder."""
-#     typer.echo("fingerprint: unavailable")
-#     raise typer.Exit(code=0)
-
-
 
 
 def main() -> None:
