@@ -15,6 +15,7 @@ app = typer.Typer(help="Schema plumbing commands.", no_args_is_help=True)
 
 @app.command("export")
 def export(
+    ctx: typer.Context,
     grammar: str = typer.Option(..., "--grammar", help="Grammar name."),
     node_types: Path = typer.Option(..., "--node-types", help="Path to node-types.json."),
     queries_dir: Path = typer.Option(..., "--queries-dir", help="Path to query .scm directory."),
@@ -29,15 +30,17 @@ def export(
             output_dir=output_dir,
         )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(message=f"schema export failed: {exc}", payload={"command": "schema export", "status": "error"})
+        fail(ctx, message=f"schema export failed: {exc}", payload={"command": "schema export", "status": "error"})
 
     if not result.generated_files:
         fail(
+            ctx,
             message="schema export failed: no files were generated",
             payload={"command": "schema export", "status": "error"},
         )
 
     emit(
+        ctx,
         payload={
             "command": "schema export",
             "generated_files": [str(path) for path in result.generated_files],
@@ -53,6 +56,7 @@ def export(
 
 @app.command("vet")
 def vet(
+    ctx: typer.Context,
     output_dir: Path = typer.Option(..., "--output-dir", help="Output directory containing generated CUE files."),
     grammar: str | None = typer.Option(None, "--grammar", help="Grammar name for provenance logs."),
 ) -> None:
@@ -60,10 +64,11 @@ def vet(
     try:
         result = validate_workshop_output(output_dir=output_dir, grammar=grammar)
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        fail(message=f"schema vet failed: {exc}", payload={"command": "schema vet", "status": "error"})
+        fail(ctx, message=f"schema vet failed: {exc}", payload={"command": "schema vet", "status": "error"})
 
     if not result.ok:
         fail(
+            ctx,
             message="schema vet failed",
             payload={
                 "command": "schema vet",
@@ -75,6 +80,7 @@ def vet(
         )
 
     emit(
+        ctx,
         payload={
             "command": "schema vet",
             "grammar": grammar,
