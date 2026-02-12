@@ -1,0 +1,17 @@
+[
+  {
+    "type": "module",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "expression_statement",
+    "named": true,
+    "fields": {}
+  }
+]

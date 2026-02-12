@@ -8,6 +8,7 @@ from json import JSONDecodeError
 from pathlib import Path
 import re
 from typing import Any, Literal
+import warnings
 
 from .models import NodeTypes, QueryCapture, QueryFile, WorkshopEvent, WorkshopInput
 
@@ -22,6 +23,31 @@ QueryType = Literal[
 ]
 
 _CAPTURE_PATTERN = re.compile(r"@(?P<name>[A-Za-z0-9_.:-]+)")
+
+
+def _validate_query_syntax(path: Path, content: str) -> None:
+    """Validate basic query parenthesis balance with line/column context."""
+    depth = 0
+    for line_number, raw_line in enumerate(content.splitlines(), start=1):
+        line = raw_line.split(";", 1)[0]
+        for column_number, char in enumerate(line, start=1):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth < 0:
+                    raise ValueError(
+                        f"Failed to parse query file at {path}: "
+                        f"line {line_number}, column {column_number}: unmatched ')'"
+                    )
+
+    if depth != 0:
+        last_line = len(content.splitlines()) or 1
+        last_column = len(content.splitlines()[-1]) if content.splitlines() else 1
+        raise ValueError(
+            f"Failed to parse query file at {path}: "
+            f"line {last_line}, column {max(last_column, 1)}: unbalanced parentheses"
+        )
 
 
 def _json_error_with_context(path: Path, error: JSONDecodeError, kind: str) -> ValueError:
@@ -56,6 +82,8 @@ def load_query_file(path: Path, query_type: QueryType) -> QueryFile:
         content = path.read_text(encoding="utf-8")
     except OSError as error:
         raise ValueError(f"Unable to read query file at {path}: {error}") from error
+
+    _validate_query_syntax(path, content)
 
     captures: list[QueryCapture] = []
     for line_number, line in enumerate(content.splitlines(), start=1):
@@ -128,13 +156,14 @@ def append_jsonl_record(record: dict[str, Any], log_file_path: str | Path) -> No
         handle.write("\n")
 
 
-def read_jsonl_records(log_file_path: str | Path) -> list[dict[str, Any]]:
-    """Read JSONL records line-by-line, skipping blanks and reporting invalid lines."""
+def read_jsonl_records(log_file_path: str | Path, *, strict: bool = False) -> list[dict[str, Any]]:
+    """Read JSONL records line-by-line, warning or failing for invalid lines."""
     path = Path(log_file_path)
     if not path.exists():
         return []
 
     records: list[dict[str, Any]] = []
+    errors: list[str] = []
     with path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             record = line.strip()
@@ -143,14 +172,28 @@ def read_jsonl_records(log_file_path: str | Path) -> list[dict[str, Any]]:
             try:
                 payload = json.loads(record)
             except JSONDecodeError as error:
-                raise ValueError(
+                message = (
                     f"Invalid JSONL record in {path} at line {line_number}: "
                     f"{error.msg} (column {error.colno})"
-                ) from error
+                )
+                if strict:
+                    errors.append(message)
+                else:
+                    warnings.warn(message, stacklevel=2)
+                continue
 
             if not isinstance(payload, dict):
-                raise ValueError(f"Invalid JSONL record in {path} at line {line_number}: expected object")
+                message = f"Invalid JSONL record in {path} at line {line_number}: expected object"
+                if strict:
+                    errors.append(message)
+                else:
+                    warnings.warn(message, stacklevel=2)
+                continue
             records.append(payload)
+
+    if strict and errors:
+        summary = "\n".join(errors)
+        raise ValueError(f"Invalid JSONL lines encountered ({len(errors)}):\n{summary}")
 
     return records
 
@@ -167,10 +210,10 @@ def load_workshop_event(payload: dict[str, Any] | str) -> WorkshopEvent:
     return WorkshopEvent.model_validate(payload)
 
 
-def load_workshop_events(log_file_path: str | Path) -> list[WorkshopEvent]:
+def load_workshop_events(log_file_path: str | Path, *, strict: bool = False) -> list[WorkshopEvent]:
     """Load workshop events from JSONL file line-by-line."""
     events: list[WorkshopEvent] = []
-    for payload in read_jsonl_records(log_file_path):
+    for payload in read_jsonl_records(log_file_path, strict=strict):
         if "timestamp" in payload and isinstance(payload["timestamp"], str):
             try:
                 payload["timestamp"] = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
