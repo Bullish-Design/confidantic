@@ -143,6 +143,7 @@ Confidantic should validate:
 - [CONFIDANTIC_CONCEPT.md](./CONFIDANTIC_CONCEPT.md) — canonical concept and architecture scope
 - [AGENTS.md](./AGENTS.md) — implementation guidance and non-negotiable contracts
 - [ROADMAP.md](./ROADMAP.md) — phased implementation roadmap
+- [docs/WORKSHOP_LOGS.md](./docs/WORKSHOP_LOGS.md) — workshop provenance JSONL contract
 
 ## Phase 2: Deterministic CUE Generation
 

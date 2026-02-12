@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import typer
 
+from confidantic.workshop.doctor import export_diagnostic_report, format_diagnostic_report
 from confidantic.workshop.services import (
     doctor_workshop_inputs,
     generate_workshop_schemas,
@@ -49,31 +51,46 @@ def generate(
 
 @app.command("doctor")
 def doctor(
+    grammar: str = typer.Option(..., "--grammar", help="Grammar name."),
     node_types: Path = typer.Option(..., "--node-types", help="Path to node-types.json."),
     queries_dir: Path = typer.Option(..., "--queries-dir", help="Path to query .scm directory."),
+    schemas_dir: Path | None = typer.Option(None, "--schemas-dir", help="Optional generated CUE directory."),
+    format: Literal["terminal", "json", "markdown", "jsonl"] = typer.Option(
+        "terminal", "--format", help="Diagnostic output format."
+    ),
+    output: Path | None = typer.Option(None, "--output", help="Optional file to write report."),
 ) -> None:
     """Check workshop input health and report diagnostics."""
     try:
-        report = doctor_workshop_inputs(node_types_path=node_types, queries_dir=queries_dir)
+        result = doctor_workshop_inputs(
+            grammar=grammar,
+            node_types_path=node_types,
+            queries_dir=queries_dir,
+            schemas_dir=schemas_dir,
+        )
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
         _fail(f"workshop doctor failed: {exc}")
 
-    if report.ok:
-        typer.echo("workshop doctor: OK")
-        raise typer.Exit(code=0)
+    report = result.report
+    if format == "terminal":
+        typer.echo(format_diagnostic_report(report))
+    elif output is None:
+        _fail("workshop doctor: --output is required for non-terminal formats")
+    else:
+        export_diagnostic_report(report, output_path=output, format=format)
+        typer.echo(output)
 
-    for issue in report.issues:
-        typer.echo(issue, err=True)
-    raise typer.Exit(code=1)
+    raise typer.Exit(code=0 if report.is_healthy() else 1)
 
 
 @app.command("validate")
 def validate(
     output_dir: Path = typer.Option(..., "--output-dir", help="Output directory containing generated CUE files."),
+    grammar: str | None = typer.Option(None, "--grammar", help="Grammar name for provenance logs."),
 ) -> None:
     """Validate generated workshop CUE outputs via CUE validation services."""
     try:
-        result = validate_workshop_output(output_dir=output_dir)
+        result = validate_workshop_output(output_dir=output_dir, grammar=grammar)
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
         _fail(f"workshop validate failed: {exc}")
 
