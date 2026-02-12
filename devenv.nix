@@ -6,14 +6,17 @@ in
 {
   # https://devenv.sh/basics/
   env.GREET = "Confidantic";
+  env.CONFIDANTIC_ROOT = "${root}/.devman/.config";
+  env.CONFIDANTIC_JUSTFILE = "${root}/scripts/confidantic.just";
 
   # https://devenv.sh/packages/
-  packages = with pkgs; [ 
-    git 
+  packages = with pkgs; [
+    git
     just
     jq
     cue
-    ];
+    tree-sitter
+  ];
 
   # https://devenv.sh/languages/
   # languages.rust.enable = true;
@@ -38,7 +41,16 @@ in
   #   echo hello from $GREET
   # '';
 
+  # Intentionally do not set CONFIDANTIC_PROFILE here.
   env.JUSTFILE = ".devman/justfile";
+
+  scripts.confidantic.exec = ''
+    exec uv run --project "${root}" confidantic "$@"
+  '';
+
+  scripts.confidantic-cue.exec = ''
+    exec cue "$@"
+  '';
 
   scripts.test.exec = "just test";
 
@@ -58,6 +70,7 @@ in
     echo
     cd "${root}"
     echo PWD: "$(pwd)"
+    mkdir -p "$CONFIDANTIC_ROOT"
     echo
   '';
 
