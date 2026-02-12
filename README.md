@@ -1,121 +1,143 @@
 # Confidantic
-Magical one stop settings shop. Kinda like Wonka, but these settings factories have less oompa loopas. And a better OSHA record.
 
-## Changelog
-- Refactoring around a devman integrated cuelang + jq wrapper script
+Confidantic is a deterministic configuration system for Devman-managed projects.
 
+It provides:
 
----
+- a devenv module contract for configuration environment setup,
+- a Pydantic-based Python library for config/data resolution,
+- a required CUE workflow for schema formatting and validation.
 
-Confidantic is a lightweight, Pydantic‑v2‑powered toolkit that centralises **all** the knobs your Python project needs – environment variables, version info, feature flags and whatever new tricks tomorrow brings – behind one pleasant `Settings` import.
+## Core principles
 
-## Why Confidantic?
+- **Pydantic-first runtime models**
+- **CUE-required schema workflows** (`cue fmt`, `cue vet`)
+- **Just-first developer/CI workflows**
+- **Deterministic merge and snapshot behavior**
+- **Safe-by-default redaction**
 
-Stop writing the same brittle glue code to pull `.env` files into `pydantic` models, wire them into CLIs, and keep project metadata in sync. **Confidantic gives you a single import**:
+## Devenv contract
 
-```python
-from confidantic import Settings
+The Confidantic module must set:
+
+- `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`
+- `CONFIDANTIC_JUSTFILE=<path to include-able Confidantic justfile>`
+
+It must ensure the config root exists on shell entry and must not set `CONFIDANTIC_PROFILE`.
+
+Required tooling on PATH:
+
+- `confidantic`
+- `confidantic-cue`
+- `cue`
+- `jq`
+
+## Config layout
+
+```text
+.devman/.config/
+  confidantic.toml
+  profiles/
+    default.toml
+    ci.toml
+    local.toml
+  modules/
+    app.toml
+    infra.toml
+  data/
+    users.jsonl
+    endpoints.jsonl
 ```
 
-…and you instantly get a fully populated, type‑safe configuration object:
+## Resolution order
 
-* Recursive load of every `*.env` file from the repo root down (deepest wins).
-* OS environment variables layered on top.
-* Git branch/commit metadata.
-* Project version (kept in sync between `pyproject.toml` and `__init__.py`).
-* Your own fields—via plug‑in mix‑ins—auto‑merged at import time.
+1. registry config (`confidantic.toml`)
+2. selected profile overlay
+3. module overlays (declared deterministic order)
+4. referenced datasets
+5. explicit runtime overrides/context
 
-No init calls, no singleton ceremony. Just **import & go**.
+Profile precedence:
 
-## Features
+1. explicit API argument
+2. external `CONFIDANTIC_PROFILE`
+3. `profile_default` in registry
+4. `default`
 
-| Feature                    | Description                                               |       |                                                                        |
-| -------------------------- | --------------------------------------------------------- | ----- | ---------------------------------------------------------------------- |
-| Zero‑boilerplate settings  | `Settings` instance auto‑initialised on import            |       |                                                                        |
-| Recursive `.env` discovery | Deepest path wins; OS env overrides `.env` values         |       |                                                                        |
-| Semantic version model     | `VersionBase` (`major.minor.patch-pre`) with bump helpers |       |                                                                        |
-| Version CLI                | \`confidantic bump-version {major                         | minor | patch} \[--pre rc.1]`keeps`pyproject.toml`&`**init**.py\` in lock‑step |
-| Rich pretty‑printing       | `Settings.pretty()` via Rich                              |       |                                                                        |
-| Plug‑in registry           | Third‑party packages can extend Settings via mix‑ins      |       |                                                                        |
-| Type‑safe core             | Built on Pydantic v2                                      |       |                                                                        |
+## Merge semantics
 
-## Installation
+Default behavior:
 
-```bash
-pip install confidantic
-# Optional Git integration (for commit/branch metadata)
-pip install confidantic[git]
+- dict/object: deep merge
+- scalar: replace
+- list: replace
+
+Per-field list policy overrides:
+
+- `append`
+- `unique`
+- `keyed:<field>`
+
+## JSONL policy
+
+- one record type per file
+- invalid JSON lines produce warnings with file + line number
+- strict mode collects all invalid lines and fails with summary
+
+## CLI (plumbing)
+
+- `confidantic validate`
+- `confidantic dump --format json`
+- `confidantic env`
+- `confidantic fingerprint`
+
+## Required workflow recipes
+
+Confidantic provides an include-able justfile with:
+
+- `schema:export`
+- `schema:vet`
+- `data:vet`
+- `config:validate`
+- `config:dump`
+- `config:env`
+- `config:fingerprint`
+
+## CUE workflow
+
+- export designated schema models to `./build/schemas/cue/`
+- run `cue fmt` on generated schemas
+- validate resolved snapshots with `cue vet`
+- validate datasets with `cue vet`
+
+`confidantic-cue` is the stable wrapper used by recipes and CI.
+
+## Repository conventions
+
+Recommended structure:
+
+```text
+src/confidantic/
+  core/
+  models/
+  cue/
+  cue_export/
+devenv/
+  modules/
+  just/
+  bin/
+tests/
+  unit/
+  integration/
+build/
 ```
 
-## Quickstart
+## Quality expectations
 
-```python
-from confidantic import Settings
+Confidantic changes should improve or preserve:
 
-print(Settings.project_root)   # Path to repo root
-print(Settings.package_version) # e.g. '0.7.0'
-print(Settings.MY_API_KEY)      # Pulled from any .env or OS environment
-```
-
-### Adding your own fields
-
-```python
-from pydantic import Field
-from confidantic import PluginRegistry, SettingsType
-
-class MyCloudMixin(SettingsType):
-    cloud_token: str = Field(env="CLOUD_TOKEN")
-
-PluginRegistry.register(MyCloudMixin)
-
-from confidantic import Settings  # re-import picks up new mix‑in
-print(Settings.cloud_token)
-```
-
-## CLI
-
-| Command                               | Purpose                                       |
-| ------------------------------------- | --------------------------------------------- |
-| `confidantic env`                     | Pretty‑prints the resolved settings           |
-| `confidantic env --export`            | Emits `export KEY=VAL` lines for shells       |
-| `confidantic info`                    | Shows project root, version, Git info         |
-| `confidantic bump-version patch [-n]` | Bump & sync semantic version; `-n` is dry‑run |
-
-All commands are also invokable as `python -m confidantic.cli …`.
-
-## Demo
-
-A ready‑to‑run sanity check lives at **`examples/demo_confidantic.py`**:
-
-```bash
-python examples/demo_confidantic.py
-```
-
-It prints your merged settings and performs a dry‑run version bump.
-
-## How version bump works
-
-1. Read current version from `pyproject.toml`.
-2. Compute next semantic version via `VersionBase`.
-3. Update both `pyproject.toml` **and** `package/__init__.py` atomically.
-
-Use `--pre alpha.1` to add prerelease tags.
-
-## Project structure assumptions
-
-* Repo root contains a `pyproject.toml`.
-* Your package lives directly under the root folder (`/confidantic`, `/my_pkg`, …).
-* Git info is optional; if `gitpython` isn’t installed or you're outside a repo, the fields are simply `None`.
-
-## Contributing
-
-Issues & PRs welcome on GitHub ([@Bullish-Design](https://github.com/Bullish-Design)).
-
-```bash
-pip install -e ".[dev]" && pytest
-```
-
----
-
-MIT © 2025 Bullish‑Design
-
+- determinism
+- debuggability
+- safety/redaction behavior
+- module-driven environment contracts
+- required CUE workflow behavior

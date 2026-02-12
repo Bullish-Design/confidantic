@@ -1,50 +1,23 @@
-# CONFIDANTIC V2 Refactoring Guide (Ground-Up Rewrite)
+# Confidantic Implementation Guide
 
-This guide is for a **clean-break rewrite** of Confidantic aligned to:
-
-- `AGENTS.md` (implementation contracts)
-- `CONFIDANTIC_CONCEPT.md` (source of truth for Confidantic)
-- `DEVMAN_CORE_CONCEPTS.md` (Devman operating model)
-
-> **No backward compatibility work is needed.**
-> Delete legacy assumptions and implement only the new architecture.
+This guide describes the target architecture and execution model for Confidantic.
 
 ---
 
-## 0) Mission and non-negotiables
+## 1) Architecture boundaries
 
-Before writing code, internalize these hard constraints:
+Confidantic consists of:
 
-1. **CUE is required** for schema formatting and validation (`cue fmt`, `cue vet`).
-2. **devenv module always sets `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`**.
-3. **devenv module must not set `CONFIDANTIC_PROFILE`**.
-4. **CLI is plumbing only**; `just` is the primary workflow entrypoint.
-5. **Determinism and safety are mandatory** (stable merges, redaction by default).
-6. **JSONL policy**: one record type per file, invalid lines skipped with warnings by default.
+- devenv integration layer (module + shell/tooling contract)
+- Python core (models, loaders, resolver, redaction, snapshot, fingerprint)
+- CUE integration layer (export + vet wrapper)
+- Just recipe layer (developer/CI workflows)
 
----
-
-## 1) Rewrite strategy (order of execution)
-
-Use this exact order to avoid architecture drift:
-
-1. **Create target project skeleton** (new package layout).
-2. **Define core domain models and contracts** (Pydantic-first).
-3. **Implement deterministic loaders + resolver + merge engine**.
-4. **Implement redaction + stable resolved snapshot output**.
-5. **Implement minimal plumbing CLI**.
-6. **Implement CUE export + CUE wrapper integration**.
-7. **Implement devenv module + Just include recipes**.
-8. **Add tests that prove the non-negotiable contracts**.
-9. **Remove/replace legacy files and update docs**.
-
-Do not start with CLI or docs first. The data model and resolver contract come first.
+The system is designed for deterministic, safe, machine-friendly behavior.
 
 ---
 
-## 2) Target repository layout (V2)
-
-Refactor to this structure:
+## 2) Recommended repository layout
 
 ```text
 confidantic/
@@ -73,248 +46,184 @@ confidantic/
       emitters.py
     cue/
       wrapper.py
-  .devman/
-    devenv.nix               
-    ...
+  devenv/
+    modules/
+      confidantic.nix
+    just/
+      confidantic.just
+    bin/
+      confidantic-cue
   tests/
     unit/
     integration/
-  build/  # generated artifacts (gitignored)
+  build/
 ```
 
-You may adjust filenames slightly, but keep these logical boundaries.
+---
+
+## 3) Core domain contracts
+
+### 3.1 `BaseConfig`
+
+Shared Pydantic base model with:
+
+- explicit model config
+- controlled extra behavior
+- stable serialization support
+- `to_redacted_dict()` helper
+
+### 3.2 `RegistryConfig`
+
+Loaded from `confidantic.toml`, includes:
+
+- `profile_default`
+- module declarations and deterministic order
+- dataset declarations and record model bindings
+- policy flags (including JSONL strict mode)
+
+### 3.3 `DevmanContext`
+
+Serializable runtime context for explicit runtime metadata and overrides.
+
+### 3.4 `ResolvedBundle`
+
+Canonical resolved artifact containing:
+
+- metadata (profile, modules, fingerprint)
+- resolved config object
+- resolved dataset payloads
+- redacted serialization path
 
 ---
 
-## 3) Remove V1 assumptions immediately
+## 4) Loaders
 
-Delete or replace legacy behavior that conflicts with V2, including:
-
-- auto-import singleton settings behavior
-- recursive `.env` crawling as primary config mechanism
-- version-bump-centric CLI behavior
-- plugin-mixin runtime mutation patterns for configuration model shape
-
-V2 configuration source is `.devman/.config` with TOML/JSONL + explicit resolution.
-
----
-
-## 4) Define core Pydantic contracts first
-
-Create these foundational model classes in `src/confidantic/models/`.
-
-### 4.1 `BaseConfig`
-
-Responsibilities:
-
-- common model config defaults
-- strict/forbid behavior where needed
-- shared helpers:
-  - `to_redacted_dict()`
-  - stable serialization utility for snapshot generation
-
-Recommended settings:
-
-- explicit `model_config`
-- controlled `extra` handling per model (`forbid` by default; override when intentional)
-
-### 4.2 `RegistryConfig` (loaded from `confidantic.toml`)
-
-Should include at least:
-
-- `profile_default: str = "default"`
-- module declarations and activation order
-- dataset declarations (paths + record model binding)
-- policy toggles (optional strict JSONL mode)
-
-### 4.3 `DevmanContext`
-
-Runtime-only context object for injected metadata (e.g. repo path, run metadata, optional jj info).
-Keep context explicit and serializable.
-
-### 4.4 `ResolvedBundle`
-
-Canonical resolved output for:
-
-- `confidantic dump --format json`
-- `cue vet` input
-- golden tests
-
-Include:
-
-- `meta` (profile, module order, fingerprint, generation timestamp policy)
-- `config` (resolved merged config)
-- `datasets` (validated record payloads)
-- redacted view support
-
----
-
-## 5) Implement loading layer (deterministic and explicit)
-
-### 5.1 TOML loader (`core/loader_toml.py`)
+### 4.1 TOML loader
 
 Requirements:
 
-- deterministic load order from registry/module declarations
-- stable, user-readable errors with:
-  - file path
-  - key path
-  - expected/actual type details
+- deterministic file loading order
+- stable parse/validation errors including file and key path
 - Pydantic validation at parse boundary
 
-### 5.2 JSONL loader (`core/loader_jsonl.py`)
+### 4.2 JSONL loader
 
 Requirements:
 
-- line-by-line parse
-- each file bound to one record model type
-- invalid JSON line behavior:
-  - default: warn + skip
-  - warning includes file and 1-based line number
-- valid JSON lines validated by Pydantic model
-
-Output should carry both parsed models and warning metadata.
+- line-by-line parsing
+- single record type per file
+- warn/skip invalid lines with file + 1-based line number
+- strict mode that collects all invalid lines and fails with summary
+- Pydantic validation for valid JSON records
 
 ---
 
-## 6) Implement merge semantics engine
+## 5) Merge engine
 
-Create `core/merge.py` with explicit algorithmic rules:
+Default merge rules:
 
-- dict/object: deep merge
+- dict: deep merge
 - scalar: replace
-- list: replace by default
+- list: replace
 
-Then add per-field list policy support via Field metadata:
+Field metadata can apply list policies:
 
 - `append`
 - `unique`
 - `keyed:<field>`
 
-Implementation notes for junior dev:
-
-1. Define policy extraction helper from Pydantic field metadata.
-2. Keep merge function pure (`left`, `right`, schema info) -> merged value.
-3. Normalize dictionary key iteration order.
-4. Write focused tests for each list policy and edge case.
+Implementation should be pure-function oriented and deterministic.
 
 ---
 
-## 7) Build resolver pipeline
+## 6) Resolver orchestration
 
-Create `core/resolver.py` with a single orchestrator function/class:
+Resolver flow:
 
-1. resolve profile precedence:
-   - explicit API arg
-   - `CONFIDANTIC_PROFILE` env override (if set externally)
-   - registry `profile_default`
-   - fallback `default`
+1. choose profile using precedence contract
 2. load registry
-3. load profile overlay
-4. load modules in deterministic declared order
+3. load selected profile overlay
+4. load modules in declared deterministic order
 5. load datasets
 6. apply explicit runtime overrides/context
-7. build `ResolvedBundle`
+7. produce `ResolvedBundle`
 8. compute fingerprint from normalized redacted snapshot
 
-All steps should be observable through structured debug logs (without secrets).
+---
+
+## 7) Redaction
+
+Redaction should recurse through models, dicts, and lists and mask:
+
+- secret field types
+- explicitly redacted fields
+
+Use a single canonical mask token for consistency.
 
 ---
 
-## 8) Redaction and safe logging
+## 8) Snapshot and fingerprint
 
-Implement in `core/redaction.py`:
-
-- mask `SecretStr`, `SecretBytes`
-- mask fields marked with redaction metadata
-- recurse through nested models/lists/dicts
-
-Define consistent mask token (e.g. `"***REDACTED***"`).
-
-All CLI outputs except explicitly unsafe debug channels should use redacted payloads.
-
----
-
-## 9) Stable snapshot contract
-
-Implement `core/snapshot.py`:
+Snapshot requirements:
 
 - deterministic key ordering
-- deterministic list ordering where semantics allow
-- JSON-safe normalization
-- no volatile runtime fields unless intentionally included
+- stable serialization shape
+- no volatile data unless explicitly modeled
+- directly usable as `cue vet` input and golden-test artifact
 
-`confidantic dump --format json` output must be stable enough for:
-
-- `cue vet` input
-- snapshot/golden tests
-- predictable fingerprints
+Fingerprint should be derived from normalized redacted snapshot content.
 
 ---
 
-## 10) CLI (plumbing only)
+## 9) CLI surface (plumbing only)
 
-Implement only these commands in `src/confidantic/cli.py`:
+Required commands:
 
-1. `confidantic validate`
-2. `confidantic dump --format json`
-3. `confidantic env`
-4. `confidantic fingerprint`
+- `confidantic validate`
+- `confidantic dump --format json`
+- `confidantic env` (supports export mode)
+- `confidantic fingerprint`
 
-Behavior guidelines:
-
-- CLI should call resolver/services, not contain business logic.
-- Keep output machine-friendly.
-- Default to redacted output.
-- Non-zero exit codes on validation errors.
+CLI should remain thin and delegate logic to core services.
 
 ---
 
-## 11) CUE export implementation
+## 10) CUE export and wrapper
 
-Create export logic in `src/confidantic/cue_export/`:
+### 10.1 Schema export
 
-1. discover export target models (configuration roots)
-2. transform Pydantic model schema to CUE definitions
-3. write files into `./build/schemas/cue/`
-4. run `cue fmt` on generated outputs
+- discover designated export target models
+- export all designated models to `./build/schemas/cue/`
+- run `cue fmt` on generated files
 
-Use stable naming conventions so generated files do not churn unexpectedly.
+A JSON Schema intermediate may be used before CUE emission.
 
----
+### 10.2 Wrapper
 
-## 12) CUE wrapper (`confidantic-cue`)
+`confidantic-cue` should provide a stable invocation surface for recipes/CI:
 
-Implement `devenv/bin/confidantic-cue` as stable interface over `cue` (+ `jq` when needed):
-
-- normalize argument style across recipes
-- apply shape transforms before vet when required
-- enforce consistent flags and schema path handling
-
-The goal: recipes and CI call wrapper, not raw `cue` commands with copy-pasted flags.
+- normalize argument conventions
+- apply `jq` transforms where schema shape requires it
+- call `cue` with consistent flags and paths
 
 ---
 
-## 13) devenv module implementation
+## 11) Devenv module contract
 
-Create `devenv/modules/confidantic.nix` to provide:
+`devenv/modules/confidantic.nix` should provide:
 
-- `CONFIDANTIC_ROOT=<repo_root>/.devman/.config` (always)
-- `CONFIDANTIC_JUSTFILE=<path-to-confidantic.just>`
-- shell hook to `mkdir -p "$CONFIDANTIC_ROOT"`
-- packages on PATH:
-  - `cue`
-  - `jq`
-  - `confidantic` CLI
-  - `confidantic-cue`
+- `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`
+- `CONFIDANTIC_JUSTFILE=<absolute path to devenv/just/confidantic.just>`
+- shell hook ensuring `CONFIDANTIC_ROOT` exists
+- PATH tooling: `cue`, `jq`, `confidantic`, `confidantic-cue`
 
-Do **not** set `CONFIDANTIC_PROFILE` here.
+Do not set `CONFIDANTIC_PROFILE`.
 
 ---
 
-## 14) required Just recipes
+## 12) Required Just recipes
 
-Create include-able justfile at `devenv/just/confidantic.just` with recipes:
+`devenv/just/confidantic.just` should include:
 
 - `schema:export`
 - `schema:vet`
@@ -324,87 +233,28 @@ Create include-able justfile at `devenv/just/confidantic.just` with recipes:
 - `config:env`
 - `config:fingerprint`
 
-Recommended behavior:
-
-- `schema:export`: run exporter then `cue fmt`
-- `schema:vet`: dump resolved JSON then `confidantic-cue vet ...`
-- `data:vet`: vet datasets against record schemas
-
 Recipes should be composable and CI-friendly.
 
 ---
 
-## 15) testing plan (must be built with rewrite)
+## 13) Testing requirements
 
-Add tests as the implementation is written, not at the end.
+Unit coverage:
 
-### 15.1 Unit tests
-
-- merge semantics
-- list policy behavior (`replace`, `append`, `unique`, `keyed`)
+- profile precedence
+- merge semantics and all list policies
+- JSONL warning behavior and strict-mode aggregated errors
 - redaction recursion
-- profile precedence resolution
-- JSONL warn-skip and line numbering
 
-### 15.2 Integration tests
+Integration coverage:
 
-- resolver builds stable `ResolvedBundle` from realistic fixture tree
-- snapshot output determinism across repeated runs
-- `schema:export` emits valid CUE files and formatting succeeds
-- `schema:vet` success and failure paths
-- `data:vet` validates per-record schema behavior
-- devenv contract checks for env vars and root creation behavior
+- deterministic resolved bundle generation
+- stable snapshot serialization
+- schema export artifacts and `cue fmt`
+- schema vet success/failure paths
+- data vet success/failure paths
+- devenv environment contract
 
-### 15.3 Golden tests
+Golden coverage:
 
-Store expected redacted resolved snapshot JSON fixtures and compare byte-for-byte.
-
----
-
-## 16) implementation checklist (junior developer handoff)
-
-Use this checklist to track work:
-
-- [ ] Create V2 package directory skeleton
-- [ ] Replace legacy API surface with V2 model/resolver design
-- [ ] Implement `BaseConfig`, `RegistryConfig`, `DevmanContext`, `ResolvedBundle`
-- [ ] Implement TOML + JSONL loaders with stable errors/warnings
-- [ ] Implement deterministic merge engine + list policies
-- [ ] Implement resolver orchestration and profile precedence
-- [ ] Implement redaction and safe logging
-- [ ] Implement stable snapshot + fingerprint generation
-- [ ] Implement minimal plumbing CLI commands
-- [ ] Implement Pydantic -> CUE export flow
-- [ ] Implement `confidantic-cue` wrapper
-- [ ] Implement devenv module (`CONFIDANTIC_ROOT`, `CONFIDANTIC_JUSTFILE`, PATH)
-- [ ] Implement required Just recipes
-- [ ] Add unit/integration/golden tests
-- [ ] Remove obsolete docs and update README to V2 architecture
-
----
-
-## 17) Definition of done (must all be true)
-
-1. Confidantic can resolve `.devman/.config` config into a deterministic redacted snapshot.
-2. `confidantic validate`, `dump`, `env`, and `fingerprint` function as plumbing commands.
-3. CUE export and vet workflows run through supported recipes/wrapper.
-4. devenv module sets `CONFIDANTIC_ROOT` and never sets `CONFIDANTIC_PROFILE`.
-5. Just include file provides all required recipes.
-6. Tests cover all non-negotiable contracts from AGENTS + concept docs.
-
-If any item is false, the rewrite is incomplete.
-
----
-
-## 18) Suggested execution timeline (practical)
-
-- **Day 1–2:** architecture skeleton + core models
-- **Day 3–4:** loaders + merge engine + resolver
-- **Day 5:** redaction + snapshot + fingerprint
-- **Day 6:** CLI + CUE export baseline
-- **Day 7:** wrapper + justfile + devenv module
-- **Day 8–9:** integration tests + golden fixtures
-- **Day 10:** cleanup, docs, acceptance verification
-
-Prioritize correctness and determinism over feature breadth.
-
+- byte-stable redacted resolved snapshot fixtures
