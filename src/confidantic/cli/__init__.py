@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-import json
-from os import environ
-
 import typer
 
+from .config import app as config_app
+from .config import dump as config_dump
+from .config import env as config_env
+from .config import fingerprint as config_fingerprint
+from .config import validate as config_validate
 from confidantic.workshop.logging import WorkshopLogReader
 
 from .schema import app as schema_app
 from .logs import app as logs_app
 from .workshop import app as workshop_app
+from .schema import app as schema_app
 
 app = typer.Typer(help="Confidantic CLI.", no_args_is_help=True)
+app.add_typer(config_app, name="config")
+app.add_typer(schema_app, name="schema")
 app.add_typer(workshop_app, name="workshop")
 app.add_typer(schema_app, name="schema")
 
@@ -21,38 +26,29 @@ app.add_typer(logs_app, name="logs")
 
 @app.command("validate")
 def validate() -> None:
-    """Validate active configuration state (plumbing command)."""
-    typer.echo("validate: not yet implemented")
-    raise typer.Exit(code=0)
+    """Legacy wrapper for `config validate`."""
+    config_validate()
 
 
 @app.command("dump")
 def dump(format: str = typer.Option("json", "--format", help="Output format.")) -> None:
-    """Dump active configuration state (plumbing command)."""
-    payload = {"format": format, "status": "ok"}
-    if format == "json":
-        typer.echo(json.dumps(payload, sort_keys=True))
-    else:
-        typer.echo(f"dump format={format}")
-    raise typer.Exit(code=0)
+    """Legacy wrapper for `config dump`."""
+    config_dump(format=format)
 
 
 @app.command("env")
 def env(export: bool = typer.Option(False, "--export", help="Emit shell export syntax.")) -> None:
-    """Show Confidantic environment values."""
-    root = environ.get("CONFIDANTIC_ROOT", "")
-    if export:
-        typer.echo(f'export CONFIDANTIC_ROOT="{root}"')
-    else:
-        typer.echo(f"CONFIDANTIC_ROOT={root}")
-    raise typer.Exit(code=0)
+    """Legacy wrapper for `config env`."""
+    config_env(export=export)
 
 
 @app.command("fingerprint")
 def fingerprint() -> None:
-    """Show deterministic configuration fingerprint placeholder."""
-    typer.echo("fingerprint: unavailable")
-    raise typer.Exit(code=0)
+    """Legacy wrapper for `config fingerprint`."""
+    config_fingerprint()
+#     """Show deterministic configuration fingerprint placeholder."""
+#     typer.echo("fingerprint: unavailable")
+#     raise typer.Exit(code=0)
 
 
 
