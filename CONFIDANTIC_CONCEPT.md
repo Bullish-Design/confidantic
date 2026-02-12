@@ -69,12 +69,13 @@ The module must ensure the root exists on shell entry.
 
 The module must **not** set `CONFIDANTIC_PROFILE`.
 
-Profile resolution precedence:
+Profile selection is optional for MVP.
+
+Minimal profile precedence (MVP):
 
 1. explicit API argument
 2. externally-provided `CONFIDANTIC_PROFILE`
-3. `confidantic.toml` `profile_default`
-4. `default`
+3. `default`
 
 ### 3.3 Typical layout
 
@@ -85,13 +86,17 @@ Profile resolution precedence:
     default.toml
     ci.toml
     local.toml
-  modules/
+  modules/  # optional module config fragments
     app.toml
     infra.toml
   data/
     users.jsonl
     endpoints.jsonl
 ```
+
+### 3.4 Post-MVP profile expansion
+
+Advanced profile capabilities (such as profile registries, richer indexing, or additional discovery conventions) are future expansion and are not required for MVP behavior.
 
 ---
 
