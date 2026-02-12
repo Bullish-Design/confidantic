@@ -7,11 +7,15 @@ from os import environ
 
 import typer
 
+from confidantic.workshop.logging import WorkshopLogReader
+
+from .schema import app as schema_app
 from .logs import app as logs_app
 from .workshop import app as workshop_app
 
 app = typer.Typer(help="Confidantic CLI.", no_args_is_help=True)
 app.add_typer(workshop_app, name="workshop")
+app.add_typer(schema_app, name="schema")
 
 app.add_typer(logs_app, name="logs")
 
