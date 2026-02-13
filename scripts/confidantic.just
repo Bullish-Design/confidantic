@@ -20,7 +20,8 @@ cue-from-ts-generate grammar:
       echo "error: missing required query directory: $queries_dir" >&2; \
       exit 1; \
     fi; \
-    if ! compgen -G "$queries_dir/*.scm" >/dev/null; then \
+    query_files="$(find "$queries_dir" -maxdepth 1 -type f -name "*.scm" ! -name ".*" -print | LC_ALL=C sort)"; \
+    if [[ -z "$query_files" ]]; then \
       echo "error: no .scm query files found in: $queries_dir" >&2; \
       exit 1; \
     fi; \
