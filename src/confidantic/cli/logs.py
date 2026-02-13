@@ -86,25 +86,30 @@ def show(
     stage: str | None = typer.Option(None, "--stage", help="Filter by stage."),
     status: str | None = typer.Option(None, "--status", help="Filter by status."),
     failures_only: bool = typer.Option(False, "--failures-only", help="Show only failures."),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
     format: OutputFormat = typer.Option(OutputFormat.TEXT, "--format", help="Output format."),
 ) -> None:
     """Show recent workshop log events with optional filters."""
     selected_status = "failure" if failures_only else status
     reader = WorkshopLogReader()
     events = reader.query_events(grammar=grammar, stage=stage, status=selected_status, limit=limit)
-    _emit_events(ctx, events, format=format)
+    effective_format = OutputFormat.JSON if json_output else format
+    _emit_events(ctx, events, format=effective_format)
 
 
 @app.command("stats")
 def stats(
     ctx: typer.Context,
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
     format: OutputFormat = typer.Option(OutputFormat.TEXT, "--format", help="Output format."),
 ) -> None:
     """Show aggregate workshop log statistics."""
     reader = WorkshopLogReader()
     payload = reader.calculate_stats()
 
-    if format in {OutputFormat.JSON, OutputFormat.JSONL}:
+    effective_format = OutputFormat.JSON if json_output else format
+
+    if effective_format in {OutputFormat.JSON, OutputFormat.JSONL}:
         emit(ctx, payload=payload, text="stats", quiet_text="ok")
         return
 
@@ -131,6 +136,7 @@ def query(
     until: str | None = typer.Option(None, "--until", help="Inclusive upper timestamp bound (ISO-8601)."),
     window: str | None = typer.Option(None, "--window", help="Relative time window ending now (e.g. 30m, 2h, 1d, 500ms)."),
     limit: int | None = typer.Option(None, "--limit", min=1, help="Optional max number of events."),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
     format: OutputFormat = typer.Option(OutputFormat.TEXT, "--format", help="Output format."),
 ) -> None:
     """Query workshop events using explicit filtering predicates."""
@@ -156,4 +162,5 @@ def query(
         until=until_dt,
         limit=limit,
     )
-    _emit_events(ctx, events, format=format)
+    effective_format = OutputFormat.JSON if json_output else format
+    _emit_events(ctx, events, format=effective_format)
