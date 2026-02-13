@@ -99,55 +99,55 @@ cue-from-ts-clean grammar:
 #   - Tree-sitter inputs: build/treesitter/<grammar>/
 #   - CUE outputs: build/schemas/cue/<grammar>/
 
-schema:export:
+schema-export:
     @just --justfile {{justfile()}} cue-from-ts-generate "{{compat_grammar}}"; \
     just --justfile {{justfile()}} cue-from-ts-fmt "{{compat_grammar}}"
 
-schema:export:grammar grammar:
+schema-export-grammar grammar:
     @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
     just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
 
-schema:vet:
+schema-vet:
     @just --justfile {{justfile()}} cue-from-ts-vet "{{compat_grammar}}"
 
-schema:vet:grammar grammar:
+schema-vet-grammar grammar:
     @just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
-data:vet:
+data-vet:
     @schema_dir="{{schemas_dir}}/{{compat_grammar}}"; \
     data_path="{{compat_data_path}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
-      echo "hint: run 'just schema:export' first" >&2; \
+      echo "hint: run 'just schema-export' first" >&2; \
       exit 1; \
     fi; \
     if [[ ! -e "$data_path" ]]; then \
       echo "error: missing dataset path for validation: $data_path" >&2; \
-      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data:vet:path <path>'" >&2; \
+      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data-vet-path <path>'" >&2; \
       exit 1; \
     fi; \
     confidantic-cue vet "$data_path" "$schema_dir"
 
-data:vet:grammar grammar:
+data-vet-grammar grammar:
     @schema_dir="{{schemas_dir}}/{{grammar}}"; \
     data_path="{{compat_data_path}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
-      echo "hint: run 'just schema:export:grammar {{grammar}}' first" >&2; \
+      echo "hint: run 'just schema-export-grammar {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     if [[ ! -e "$data_path" ]]; then \
       echo "error: missing dataset path for validation: $data_path" >&2; \
-      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data:vet:grammar:path {{grammar}} <path>'" >&2; \
+      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data-vet-grammar-path {{grammar}} <path>'" >&2; \
       exit 1; \
     fi; \
     confidantic-cue vet "$data_path" "$schema_dir"
 
-data:vet:path data_path:
+data-vet-path data_path:
     @schema_dir="{{schemas_dir}}/{{compat_grammar}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
-      echo "hint: run 'just schema:export' first" >&2; \
+      echo "hint: run 'just schema-export' first" >&2; \
       exit 1; \
     fi; \
     if [[ ! -e "{{data_path}}" ]]; then \
@@ -156,11 +156,11 @@ data:vet:path data_path:
     fi; \
     confidantic-cue vet "{{data_path}}" "$schema_dir"
 
-data:vet:grammar:path grammar data_path:
+data-vet-grammar-path grammar data_path:
     @schema_dir="{{schemas_dir}}/{{grammar}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
-      echo "hint: run 'just schema:export:grammar {{grammar}}' first" >&2; \
+      echo "hint: run 'just schema-export-grammar {{grammar}}' first" >&2; \
       exit 1; \
     fi; \
     if [[ ! -e "{{data_path}}" ]]; then \
@@ -169,35 +169,96 @@ data:vet:grammar:path grammar data_path:
     fi; \
     confidantic-cue vet "{{data_path}}" "$schema_dir"
 
-config:validate:
+config-validate:
     @confidantic validate
 
-config:dump:
+config-dump:
     @confidantic dump --format json
 
-config:env:
+config-env:
     @confidantic env --export
 
-config:fingerprint:
+config-fingerprint:
     @confidantic fingerprint
+
+# Group wrappers that preserve contract semantics in Just-compatible form.
+# Usage examples:
+#   just schema export
+#   just schema export default
+#   just schema vet my-grammar
+schema action="export" grammar="":
+    @selected_grammar="{{if grammar == "" { compat_grammar } else { grammar }}}"; \
+    case "{{action}}" in \
+      export) \
+        if [[ "{{grammar}}" == "" ]]; then \
+          just --justfile {{justfile()}} schema-export; \
+        else \
+          just --justfile {{justfile()}} schema-export-grammar "$selected_grammar"; \
+        fi ;; \
+      vet) \
+        if [[ "{{grammar}}" == "" ]]; then \
+          just --justfile {{justfile()}} schema-vet; \
+        else \
+          just --justfile {{justfile()}} schema-vet-grammar "$selected_grammar"; \
+        fi ;; \
+      *) \
+        echo "error: unsupported schema action '{{action}}' (expected export|vet)" >&2; \
+        exit 1 ;; \
+    esac
+
+# Usage examples:
+#   just data vet
+#   just data vet my-grammar
+#   just data vet my-grammar path/to/data.jsonl
+data action="vet" grammar="" data_path="":
+    @selected_grammar="{{if grammar == "" { compat_grammar } else { grammar }}}"; \
+    case "{{action}}" in \
+      vet) \
+        if [[ "{{grammar}}" == "" && "{{data_path}}" == "" ]]; then \
+          just --justfile {{justfile()}} data-vet; \
+        elif [[ "{{grammar}}" == "" ]]; then \
+          just --justfile {{justfile()}} data-vet-path "{{data_path}}"; \
+        elif [[ "{{data_path}}" == "" ]]; then \
+          just --justfile {{justfile()}} data-vet-grammar "$selected_grammar"; \
+        else \
+          just --justfile {{justfile()}} data-vet-grammar-path "$selected_grammar" "{{data_path}}"; \
+        fi ;; \
+      *) \
+        echo "error: unsupported data action '{{action}}' (expected vet)" >&2; \
+        exit 1 ;; \
+    esac
+
+# Usage examples:
+#   just config validate
+#   just config dump
+config action="validate":
+    @case "{{action}}" in \
+      validate) just --justfile {{justfile()}} config-validate ;; \
+      dump) just --justfile {{justfile()}} config-dump ;; \
+      env) just --justfile {{justfile()}} config-env ;; \
+      fingerprint) just --justfile {{justfile()}} config-fingerprint ;; \
+      *) \
+        echo "error: unsupported config action '{{action}}' (expected validate|dump|env|fingerprint)" >&2; \
+        exit 1 ;; \
+    esac
 
 # ---------------------------------------------------------------------------
 # Phase 6 quality gates (CI/CD equivalent via Python runner)
 # ---------------------------------------------------------------------------
 
-ci:test:
+ci-test:
     @python scripts/ci/phase6_quality_gates.py test
 
-ci:quality:
+ci-quality:
     @python scripts/ci/phase6_quality_gates.py quality
 
-ci:performance:
+ci-performance:
     @python scripts/ci/phase6_quality_gates.py performance
 
-ci:e2e:
+ci-e2e:
     @python scripts/ci/phase6_quality_gates.py e2e
 
-ci:check: ci:test ci:quality ci:performance
+ci-check: ci-test ci-quality ci-performance
 
-ci:all: ci:check ci:e2e
+ci-all: ci-check ci-e2e
     @echo "✓ All CI checks passed"
