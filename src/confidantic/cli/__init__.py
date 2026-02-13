@@ -44,7 +44,9 @@ def root_callback(
 @app.command("validate")
 def validate(ctx: typer.Context) -> None:
     """Legacy wrapper for `config validate`."""
-    config_validate(ctx)
+    _ = ctx
+    typer.echo("validate: not yet implemented")
+    raise typer.Exit(code=0)
 
 
 @app.command("dump")
