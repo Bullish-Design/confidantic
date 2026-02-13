@@ -112,8 +112,14 @@ def stats(
 
     effective_format = OutputFormat.JSON if json_output else format
 
-    if effective_format in {OutputFormat.JSON, OutputFormat.JSONL}:
-        emit(ctx, payload=payload, text="stats", quiet_text="ok")
+    if effective_format == OutputFormat.JSON:
+        typer.echo(json.dumps(payload, sort_keys=True))
+        return
+
+    if effective_format == OutputFormat.JSONL:
+        # JSONL representation for aggregate stats uses a single deterministic
+        # record with a stable `record_type` marker.
+        typer.echo(json.dumps({"record_type": "stats", **payload}, sort_keys=True))
         return
 
     lines = [f"total_events: {payload['total_events']}", f"failures: {payload['failures']}"]
