@@ -61,9 +61,9 @@ cue-from-ts-vet grammar:
     confidantic-cue vet "$output_dir"
 
 cue-from-ts-test grammar:
-    @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
-    just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"; \
-    just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
+    just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"; \
+    just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
 cue-from-ts-doctor grammar:
     @node_types="{{treesitter_dir}}/{{grammar}}/node-types.json"; \
@@ -82,8 +82,8 @@ cue-from-ts-doctor grammar:
       --queries-dir "$queries_dir"
 
 cue-from-ts-workshop grammar:
-    @just --justfile {{justfile()}} cue-from-ts-doctor "{{grammar}}"; \
-    just --justfile {{justfile()}} cue-from-ts-test "{{grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-doctor "{{grammar}}"; \
+    just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-test "{{grammar}}"
 
 cue-from-ts-clean grammar:
     @output_dir="{{schemas_dir}}/{{grammar}}"; \
@@ -102,18 +102,18 @@ cue-from-ts-clean grammar:
 #   - CUE outputs: build/schemas/cue/<grammar>/
 
 schema-export:
-    @just --justfile {{justfile()}} cue-from-ts-generate "{{compat_grammar}}"; \
-    just --justfile {{justfile()}} cue-from-ts-fmt "{{compat_grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-generate "{{compat_grammar}}"; \
+    just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-fmt "{{compat_grammar}}"
 
 schema-export-grammar grammar:
-    @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
-    just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
+    just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
 
 schema-vet:
-    @just --justfile {{justfile()}} cue-from-ts-vet "{{compat_grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-vet "{{compat_grammar}}"
 
 schema-vet-grammar grammar:
-    @just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
+    @just --working-directory "{{invocation_dir}}" --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
 data-vet:
     @schema_dir="{{schemas_dir}}/{{compat_grammar}}"; \
