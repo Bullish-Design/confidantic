@@ -8,6 +8,9 @@ from typer.testing import CliRunner
 from confidantic.cli import app
 from confidantic.workshop.logging import WorkshopLogger
 
+# CLI convention: Typer-native parameter validation errors are asserted from stderr.
+# Structured confidantic application failures may still emit JSON payloads to stderr.
+
 
 def test_logs_show_and_stats_commands(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
@@ -107,4 +110,4 @@ def test_logs_query_filters_time_and_status(tmp_path: Path, monkeypatch) -> None
 
     bad_window = runner.invoke(app, ["logs", "query", "--window", "today"])
     assert bad_window.exit_code != 0
-    assert "window must end with one of" in bad_window.stdout
+    assert "window must end with one of" in bad_window.stderr
