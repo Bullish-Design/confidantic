@@ -9,7 +9,7 @@ import typer
 
 from confidantic.workshop.services import generate_workshop_schemas, validate_workshop_output
 
-from .output import emit, fail
+from .output import fail
 
 app = typer.Typer(help="Schema plumbing commands.", no_args_is_help=True)
 
@@ -32,6 +32,11 @@ def _emit_schema_vet_failure(*, output_dir: Path, grammar: str | None, message: 
         err=True,
     )
     raise typer.Exit(code=1)
+
+
+def _emit_schema_success(payload: dict[str, object]) -> None:
+    """Emit schema success payloads as deterministic JSON on stdout."""
+    typer.echo(json.dumps(payload, sort_keys=True))
 
 
 @app.command("export")
@@ -63,17 +68,14 @@ def export(
         )
         raise typer.Exit(code=1)
 
-    emit(
-        ctx,
-        payload={
+    _emit_schema_success(
+        {
             "command": "schema export",
             "generated_files": [str(path) for path in generated_files],
             "grammar": grammar,
             "output_dir": str(output_dir),
             "status": "ok",
-        },
-        text=f"Generated {len(generated_files)} schema file(s).",
-        quiet_text="ok",
+        }
     )
     raise typer.Exit(code=0)
 
@@ -104,16 +106,13 @@ def vet(
             errors=errors,
         )
 
-    emit(
-        ctx,
-        payload={
+    _emit_schema_success(
+        {
             "command": "schema vet",
             "grammar": grammar,
             "ok": True,
             "output_dir": str(output_dir),
             "status": "ok",
-        },
-        text="schema vet: OK",
-        quiet_text="ok",
+        }
     )
     raise typer.Exit(code=0)
