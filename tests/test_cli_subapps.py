@@ -15,6 +15,7 @@ def test_cli_registers_expected_subapps() -> None:
     assert "schema" in result.stdout
     assert "workshop" in result.stdout
     assert "logs" in result.stdout
+    assert "workflow" in result.stdout
 
 
 def test_schema_and_logs_query_commands_exist() -> None:

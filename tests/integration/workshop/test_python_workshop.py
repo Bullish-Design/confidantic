@@ -43,10 +43,9 @@ def test_python_workshop_end_to_end(tmp_path: Path) -> None:
     assert len(WorkshopLogReader(log_path=log_file).filter_by_grammar("python")) == 1
 
 
-def test_workshop_recipe_smoke(tmp_path: Path) -> None:
-    if shutil.which("just") is None:
-        pytest.skip("just binary not available")
+def test_workflow_cli_group_is_available() -> None:
+    from confidantic.cli import app
 
-    # Minimal smoke check: recipe file exists and just can list it.
-    recipe_file = Path("scripts/confidantic.just")
-    assert recipe_file.exists()
+    command_names = [command.name for command in app.registered_commands]
+    group_names = [group.name for group in app.registered_groups]
+    assert "workflow" in group_names

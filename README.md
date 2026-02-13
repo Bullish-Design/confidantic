@@ -31,22 +31,22 @@ Confidantic focuses on fast iteration for generating CUE schema/files from Tree-
 
 ```bash
 # Validate workshop inputs
-just --justfile scripts/confidantic.just cue:from-ts:doctor <grammar>
+confidantic workflow doctor <grammar>
 
 # Generate deterministic CUE files from Tree-sitter artifacts
-just --justfile scripts/confidantic.just cue:from-ts:generate <grammar>
+confidantic workflow generate <grammar>
 
 # Format generated CUE files
-just --justfile scripts/confidantic.just cue:from-ts:fmt <grammar>
+confidantic workflow fmt <grammar>
 
 # Validate generated outputs
-just --justfile scripts/confidantic.just cue:from-ts:vet <grammar>
+confidantic workflow vet <grammar>
 ```
 
 One-shot loop:
 
 ```bash
-just --justfile scripts/confidantic.just cue:from-ts:workshop <grammar>
+confidantic workflow workshop <grammar>
 ```
 
 ## Workshop command examples (CLI)
@@ -83,7 +83,6 @@ confidantic workshop doctor \
 The Confidantic module must set:
 
 - `CONFIDANTIC_ROOT=<repo_root>/.devman/.config`
-- `CONFIDANTIC_JUSTFILE=<path to include-able Confidantic justfile>`
 
 It must ensure the config root exists on shell entry and must not set `CONFIDANTIC_PROFILE`.
 
@@ -155,42 +154,20 @@ logs/
 - `confidantic env [--export]`
 - `confidantic fingerprint`
 
-## Required recipe contracts
+## Workflow commands
 
-Confidantic continues to provide:
+Use Python-first workflow commands:
 
-- `schema:export`
-- `schema:vet`
-- `data:vet`
-- `config:validate`
-- `config:dump`
-- `config:env`
-- `config:fingerprint`
-
-These are implemented as stable required recipe surfaces over the workshop recipes and CLI plumbing:
-
-- `schema:export [grammar]` → runs `cue:from-ts:generate` then `cue:from-ts:fmt`
-- `schema:vet [grammar]` → runs `cue:from-ts:vet`
-- `data:vet [grammar] [data_path]` → runs `confidantic-cue vet <data_path> <schema_dir>`
-- `config:*` recipes delegate directly to `confidantic` CLI plumbing commands
-
-Adapter defaults:
-
-- `grammar` defaults to `CONFIDANTIC_GRAMMAR` or `default`
-- `data_path` defaults to `CONFIDANTIC_DATA_PATH` or `${CONFIDANTIC_ROOT}/data`
-
-## Recommended workshop recipes
-
-- `cue:from-ts:generate <grammar>`
-- `cue:from-ts:fmt <grammar>`
-- `cue:from-ts:vet <grammar>`
-- `cue:from-ts:test <grammar>`
-- `cue:from-ts:doctor <grammar>`
-- `cue:from-ts:workshop <grammar>`
+- `confidantic workflow doctor <grammar>`
+- `confidantic workflow generate <grammar>`
+- `confidantic workflow fmt <grammar>`
+- `confidantic workflow vet <grammar>`
+- `confidantic workflow workshop <grammar>`
+- `confidantic workflow data-vet <grammar> [--data-path <path>]`
 
 ## Validation expectations
 
-Confidantic should validate:
+Confidantic validates:
 
 - generated CUE schema structure
 - snapshot inputs intended for `cue vet`
@@ -201,7 +178,6 @@ Confidantic should validate:
 
 - [CONFIDANTIC_CONCEPT.md](./CONFIDANTIC_CONCEPT.md) — canonical concept and architecture scope
 - [AGENTS.md](./AGENTS.md) — implementation guidance and non-negotiable contracts
-- [ROADMAP.md](./ROADMAP.md) — phased implementation roadmap
 - [docs/WORKSHOP_LOGS.md](./docs/WORKSHOP_LOGS.md) — workshop provenance JSONL contract
-- [docs/MIGRATION.md](./docs/MIGRATION.md) — legacy-to-workshop migration guidance
-- [docs/CI_INTEGRATION.md](./docs/CI_INTEGRATION.md) — CI templates and command ordering
+- [docs/MIGRATION.md](./docs/MIGRATION.md) — workflow migration guidance
+- [docs/CI_INTEGRATION.md](./docs/CI_INTEGRATION.md) — CI command ordering and templates
