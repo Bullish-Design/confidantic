@@ -1,21 +1,8 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-import pytest
-
 from confidantic.workshop.loaders import load_workshop_input
-
-
-TRACK_C_READY = os.getenv("CONFIDANTIC_TRACK_C_READY") == "1"
-pytestmark = pytest.mark.skipif(
-    not TRACK_C_READY,
-    reason=(
-        "Track C blocked until Track A+B APIs stabilize "
-        "(function names, model fields, fingerprint semantics)."
-    ),
-)
 
 
 def test_workshop_input_loads_python_fixtures() -> None:
