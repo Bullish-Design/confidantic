@@ -1,9 +1,10 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
-confidantic_root := env_var_or_default("CONFIDANTIC_ROOT", ".devman/.config")
+invocation_dir := invocation_directory()
+confidantic_root := env_var_or_default("CONFIDANTIC_ROOT", invocation_dir + "/.devman/.config")
 compat_grammar := env_var_or_default("CONFIDANTIC_GRAMMAR", "default")
 compat_data_path := env_var_or_default("CONFIDANTIC_DATA_PATH", confidantic_root + "/data")
-build_dir := "build"
+build_dir := invocation_dir + "/build"
 schemas_dir := build_dir + "/schemas/cue"
 treesitter_dir := build_dir + "/treesitter"
 
