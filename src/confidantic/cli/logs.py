@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+import json
 
 import typer
 
@@ -51,13 +52,15 @@ def _serialize_events(events: list[WorkshopEvent]) -> list[dict[str, object]]:
 
 
 def _emit_events(ctx: typer.Context, events: list[WorkshopEvent], *, format: OutputFormat) -> None:
+    payload = {"count": len(events), "events": _serialize_events(events)}
+
     if format == OutputFormat.JSONL:
         lines = [event.to_jsonl() for event in events]
-        emit(ctx, payload={"count": len(events), "events": _serialize_events(events)}, text="\n".join(lines), quiet_text=str(len(events)))
+        emit(ctx, payload=payload, text="\n".join(lines), quiet_text=str(len(events)))
         return
 
     if format == OutputFormat.JSON:
-        emit(ctx, payload={"count": len(events), "events": _serialize_events(events)}, text=f"{len(events)} event(s)", quiet_text=str(len(events)))
+        typer.echo(json.dumps(payload, sort_keys=True))
         return
 
     lines = []
@@ -72,7 +75,7 @@ def _emit_events(ctx: typer.Context, events: list[WorkshopEvent], *, format: Out
 
     emit(
         ctx,
-        payload={"count": len(events), "events": _serialize_events(events)},
+        payload=payload,
         text="\n".join(lines),
         quiet_text=str(len(events)),
     )
