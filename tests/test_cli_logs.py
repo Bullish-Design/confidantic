@@ -33,11 +33,25 @@ def test_logs_show_and_stats_commands(tmp_path: Path, monkeypatch) -> None:
     assert show_format_payload["count"] == 2
     assert "event(s)" not in show_format_json.stdout
 
+    stats_json = runner.invoke(app, ["logs", "stats", "--json"])
+    assert stats_json.exit_code == 0
+    stats_json_payload = json.loads(stats_json.stdout)
+    assert stats_json_payload["failures"] == 1
+    assert stats_json_payload["by_stage"]["doctor"] == 1
+
     stats_result = runner.invoke(app, ["logs", "stats", "--format", "json"])
     assert stats_result.exit_code == 0
     payload = json.loads(stats_result.stdout)
     assert payload["failures"] == 1
     assert payload["by_stage"]["doctor"] == 1
+
+    stats_jsonl = runner.invoke(app, ["logs", "stats", "--format", "jsonl"])
+    assert stats_jsonl.exit_code == 0
+    stats_jsonl_lines = [line for line in stats_jsonl.stdout.splitlines() if line.strip()]
+    assert len(stats_jsonl_lines) == 1
+    stats_jsonl_payload = json.loads(stats_jsonl_lines[0])
+    assert stats_jsonl_payload["record_type"] == "stats"
+    assert stats_jsonl_payload["failures"] == 1
 
 
 def test_logs_query_filters_time_and_status(tmp_path: Path, monkeypatch) -> None:
