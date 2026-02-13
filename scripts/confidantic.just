@@ -99,23 +99,72 @@ cue-from-ts-clean grammar:
 #   - Tree-sitter inputs: build/treesitter/<grammar>/
 #   - CUE outputs: build/schemas/cue/<grammar>/
 
-schema:export grammar="{{compat_grammar}}":
+schema:export:
+    @just --justfile {{justfile()}} cue-from-ts-generate "{{compat_grammar}}"; \
+    just --justfile {{justfile()}} cue-from-ts-fmt "{{compat_grammar}}"
+
+schema:export:grammar grammar:
     @just --justfile {{justfile()}} cue-from-ts-generate "{{grammar}}"; \
     just --justfile {{justfile()}} cue-from-ts-fmt "{{grammar}}"
 
-schema:vet grammar="{{compat_grammar}}":
+schema:vet:
+    @just --justfile {{justfile()}} cue-from-ts-vet "{{compat_grammar}}"
+
+schema:vet:grammar grammar:
     @just --justfile {{justfile()}} cue-from-ts-vet "{{grammar}}"
 
-data:vet grammar="{{compat_grammar}}" data_path="{{compat_data_path}}":
-    @schema_dir="{{schemas_dir}}/{{grammar}}"; \
+data:vet:
+    @schema_dir="{{schemas_dir}}/{{compat_grammar}}"; \
+    data_path="{{compat_data_path}}"; \
     if [[ ! -d "$schema_dir" ]]; then \
       echo "error: missing generated schema directory: $schema_dir" >&2; \
-      echo "hint: run 'just schema:export {{grammar}}' first" >&2; \
+      echo "hint: run 'just schema:export' first" >&2; \
+      exit 1; \
+    fi; \
+    if [[ ! -e "$data_path" ]]; then \
+      echo "error: missing dataset path for validation: $data_path" >&2; \
+      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data:vet:path <path>'" >&2; \
+      exit 1; \
+    fi; \
+    confidantic-cue vet "$data_path" "$schema_dir"
+
+data:vet:grammar grammar:
+    @schema_dir="{{schemas_dir}}/{{grammar}}"; \
+    data_path="{{compat_data_path}}"; \
+    if [[ ! -d "$schema_dir" ]]; then \
+      echo "error: missing generated schema directory: $schema_dir" >&2; \
+      echo "hint: run 'just schema:export:grammar {{grammar}}' first" >&2; \
+      exit 1; \
+    fi; \
+    if [[ ! -e "$data_path" ]]; then \
+      echo "error: missing dataset path for validation: $data_path" >&2; \
+      echo "hint: set CONFIDANTIC_DATA_PATH or use 'just data:vet:grammar:path {{grammar}} <path>'" >&2; \
+      exit 1; \
+    fi; \
+    confidantic-cue vet "$data_path" "$schema_dir"
+
+data:vet:path data_path:
+    @schema_dir="{{schemas_dir}}/{{compat_grammar}}"; \
+    if [[ ! -d "$schema_dir" ]]; then \
+      echo "error: missing generated schema directory: $schema_dir" >&2; \
+      echo "hint: run 'just schema:export' first" >&2; \
       exit 1; \
     fi; \
     if [[ ! -e "{{data_path}}" ]]; then \
       echo "error: missing dataset path for validation: {{data_path}}" >&2; \
-      echo "hint: set CONFIDANTIC_DATA_PATH or pass data_path=<path>" >&2; \
+      exit 1; \
+    fi; \
+    confidantic-cue vet "{{data_path}}" "$schema_dir"
+
+data:vet:grammar:path grammar data_path:
+    @schema_dir="{{schemas_dir}}/{{grammar}}"; \
+    if [[ ! -d "$schema_dir" ]]; then \
+      echo "error: missing generated schema directory: $schema_dir" >&2; \
+      echo "hint: run 'just schema:export:grammar {{grammar}}' first" >&2; \
+      exit 1; \
+    fi; \
+    if [[ ! -e "{{data_path}}" ]]; then \
+      echo "error: missing dataset path for validation: {{data_path}}" >&2; \
       exit 1; \
     fi; \
     confidantic-cue vet "{{data_path}}" "$schema_dir"
