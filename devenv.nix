@@ -7,7 +7,6 @@ in
   # https://devenv.sh/basics/
   env.GREET = "Confidantic";
   env.CONFIDANTIC_ROOT = "${root}/.devman/.config";
-  env.CONFIDANTIC_JUSTFILE = "${root}/scripts/confidantic.just";
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
